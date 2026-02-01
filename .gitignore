@@ -2,4 +2,5 @@
 *.hex
 *.vcd
 *.gtkw
+/refs/
 /doom/
