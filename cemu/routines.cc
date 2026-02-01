@@ -1,5 +1,21 @@
-// Для декодера
-Uint32 opcode, funct3, rd, rs1, rs2, funct7, immi, imms, immb, immu, immj;
+#define RD(i)    ((i >>  7) & 0x1F)
+#define RS1(i)   ((i >> 15) & 0x1F)
+#define RS2(i)   ((i >> 25) & 0x1F)
+#define FN3(i)   ((i >> 12) & 0x07)
+#define FN7(i)   ((i >> 25) & 0x7F)
+
+#define IMMI(i)  (i >> 20)
+#define IMM20(i) (i & 0xFFFFF000)
+#define IMMS(i)  (((i >> 25) << 5) | ((i >> 7) & 0x1F))
+#define IMMB(i)  (((i >> 31) << 12) | (((i >> 7) & 1) << 11) | (((i >> 25) & 0x3F) << 5) | (((i >> 8) & 0x0F) << 1))
+#define IMMJ(i)  (((i >> 31) << 20) | (i & 0xFF000) | (((i >> 20) & 1) << 11) | (((i >> 21) & 0x3FF) << 1))
+
+#define WR(i,v)  regs[i] = v
+#define RR(i)    (i ? regs[i] : 0)
+
+// Знакорасширение n-го бита
+#define SIGN(i,n) (Uint32)((i & (1 << (n-1))) ? i | (0xFFFFFFFF ^ ((1 << n) - 1)) : i)
+
 char   ds[64];
 
 static const char* ralias[32] = {
@@ -33,26 +49,15 @@ void init(int argc, char** argv)
     }
 }
 
-// Вернуть байт
+// Чтение из памяти
 Uint8  readb(Uint32 a) { return mem[a & MAX_MEM]; }
 Uint16 readh(Uint32 a) { return readb(a) + readb(a+1)*256; }
 Uint32 readw(Uint32 a) { return readh(a) + readh(a+2)*65536; }
 
-// Раскодировать операнды и поля
-void decode(Uint32 inst)
-{
-    opcode = (inst & 0x7F);
-    funct3 = (inst >> 12) & 7;
-    rd     = (inst >>  7) & 0x1F;
-    rs1    = (inst >> 15) & 0x1F;
-    rs2    = (inst >> 20) & 0x1F;
-    funct7 = (inst >> 25) & 0x7F;
-    immi   = (inst >> 20);
-    immu   = inst & 0xFFFFF000;
-    imms   = (funct7 << 5) | rd;
-    immb   = ((inst >> 31) << 12) | (((inst >> 7) & 1) << 11) | (((inst >> 25) & 0x3F) << 5) | (((inst >> 8) & 0x0F) << 1);
-    immj   = ((inst >> 31) << 20) | (inst & 0xFF000) | (((inst >> 20) & 1) << 11) | (((inst >> 21) & 0x3FF) << 1);
-}
+// Запись в память
+void   writeb(Uint32 a, Uint8  b) { mem[a & MAX_MEM] = b; }
+void   writeh(Uint32 a, Uint16 b) { writeb(a, b); writeb(a + 1, b >> 8); }
+void   writew(Uint32 a, Uint32 b) { writeh(a, b); writeb(a + 2, b >> 16); }
 
 // Знакорасширение для вывода на экран
 int signex(Uint32 i, int size)
@@ -72,7 +77,18 @@ void disasm(Uint32 a)
 {
     int inst = readw(a);
 
-    decode(inst);
+    Uint32 opcode = (inst & 0x7F);
+    Uint32 funct3 = FN3(inst);
+    Uint32 funct7 = FN7(inst);
+    Uint32 rd     = RD (inst);
+    Uint32 rs1    = RS1(inst);
+    Uint32 rs2    = RS2(inst);
+    // ---
+    Uint32 immi   = IMMI(inst);
+    Uint32 immu   = IMM20(inst);
+    Uint32 imms   = IMMS(inst);
+    Uint32 immb   = IMMB(inst);
+    Uint32 immj   = IMMJ(inst);
 
     ds[0] = 0;
 
@@ -113,7 +129,7 @@ void disasm(Uint32 a)
 
         case 0x6F:
 
-            sprintf(ds, "JAL   %s,$%08x", ralias[rd], a + signex(immj,21)); return;
+            sprintf(ds, "JAL   %s,$%08x", ralias[rd], a + signex(immj, 21)); return;
 
         // ЗАГРУЗКА И СОХРАНЕНИЕ
         case 0x03:
@@ -122,7 +138,7 @@ void disasm(Uint32 a)
 
         case 0x23:
 
-            sprintf(ds, "%s %s,(%s,%d)", salias[funct3], ralias[rs2], ralias[rs1], signex(imms,12)); return;
+            sprintf(ds, "%s %s,(%s,%d)", salias[funct3], ralias[rs2], ralias[rs1], signex(imms, 12)); return;
 
         // УСЛОВНЫЕ ПЕРЕХОДЫ
         case 0x63:
@@ -139,4 +155,97 @@ void disasm(Uint32 a)
     }
 
     printf("Undefined %02x opcode %08X\n", opcode, inst);
+}
+
+void step()
+{
+    Uint32 i = readw(pc);
+    Uint32 t = 0, a, b;
+
+    switch (i & 0x7F) {
+
+        // LUI Rd, Imm20
+        case 0x37: {
+
+            WR(RD(i), IMM20(i));
+            break;
+        }
+
+        // AUIPC Rd, Imm20
+        case 0x17: {
+
+            WR(RD(i), pc + IMM20(i));
+            break;
+        }
+
+        // JAL Rd, ImmJ
+        case 0x6F: {
+
+            WR(RD(i), pc + 4);
+            pc += SIGN(IMMJ(i), 21);
+            return;
+        }
+
+        // JALR Rd,Rs1,ImmI
+        case 0x67: {
+
+            WR(RD(i), pc + 4);
+            pc = RR(RS1(i)) + (SIGN(i >> 20, 12) & ~1);
+            return;
+        }
+
+        // LOAD: Загрузка данных из памяти
+        case 0x03: {
+
+            a = RS1(i) + SIGN(IMMI(i), 12);
+
+            switch (FN3(i)) {
+
+                case 0: WR(RD(i), SIGN(readb(a), 8)); break;    // LB
+                case 1: WR(RD(i), SIGN(readh(a), 16)); break;   // LH
+                case 2: WR(RD(i), readw(a)); break;             // LW
+                case 4: WR(RD(i), readb(a)); break;             // LBU
+                case 5: WR(RD(i), readh(a)); break;             // LHU
+            }
+
+            break;
+        }
+
+        // STORE: Сохранение данных в память
+        case 0x23: {
+
+            a = RS1(i) + SIGN(IMMS(i), 12);
+
+            switch (FN3(i)) {
+
+                case 0: writeb(a, RR(RS2(i))); break;   // SB
+                case 2: writeh(a, RR(RS2(i))); break;   // SH
+                case 3: writew(a, RR(RS2(i))); break;   // SW
+            }
+
+            break;
+        }
+
+        // BRANCH rs1,rs2,immb: Условные переходы
+        case 0x63: {
+
+            a = RR(RS1(i));
+            b = RR(RS2(i));
+
+            switch (FN3(i)) {
+
+                case 0: t = (a == b); break;    // BEQ
+                case 1: t = (a != b); break;    // BNE
+                case 4: t = ((int)a <  (int)b); break; // BLT
+                case 5: t = ((int)a >= (int)b); break; // BGE
+                case 6: t = a <  b; break;      // BLTU
+                case 7: t = a >= b; break;      // BGEU
+            }
+
+            // Выполнить переход, если совпало условие
+            if (t) { pc += SIGN(IMMB(i), 13); return; }
+
+            break;
+        }
+    }
 }

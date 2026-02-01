@@ -2,5 +2,10 @@
 *.hex
 *.vcd
 *.gtkw
+*.lst
+*.bin
+*.elf
+*.log
+main
 /refs/
 /doom/
