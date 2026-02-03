@@ -1,10 +1,10 @@
 #define RD(i)    ((i >>  7) & 0x1F)
 #define RS1(i)   ((i >> 15) & 0x1F)
-#define RS2(i)   ((i >> 25) & 0x1F)
+#define RS2(i)   ((i >> 20) & 0x1F)
 #define FN3(i)   ((i >> 12) & 0x07)
 #define FN7(i)   ((i >> 25) & 0x7F)
 
-#define IMMI(i)  (i >> 20)
+#define IMMI(i)  (Uint32)(i >> 20)
 #define IMM20(i) (i & 0xFFFFF000)
 #define IMMS(i)  (((i >> 25) << 5) | ((i >> 7) & 0x1F))
 #define IMMB(i)  (((i >> 31) << 12) | (((i >> 7) & 1) << 11) | (((i >> 25) & 0x3F) << 5) | (((i >> 8) & 0x0F) << 1))
@@ -14,7 +14,7 @@
 #define RR(i)    (i ? regs[i] : 0)
 
 // Знакорасширение n-го бита
-#define SIGN(i,n) (Uint32)((i & (1 << (n-1))) ? i | (0xFFFFFFFF ^ ((1 << n) - 1)) : i)
+#define SIGN(i,n) (Uint32)(i & (1 << (n-1)) ? i | (0xFFFFFFFF ^ ((1 << n) - 1)) : i)
 
 char   ds[64];
 
@@ -46,6 +46,12 @@ void init(int argc, char** argv)
 
         FILE* f = fopen(argv[1], "rb");
         if (f) { fread(mem, 1, 1024*1024, f); fclose(f); }
+        else   { printf("PROGRAM NOT FOUND\n"); exit(1); }
+    }
+
+    for (int i = 0; i < 32; i++) {
+        regs[i]  = 0;
+        pregs[i] = 0;
     }
 }
 
@@ -98,7 +104,7 @@ void disasm(Uint32 a)
     switch (opcode) {
 
         // АЛУ с IMMEDIATE
-        case 0x13:
+        case 0x13: {
 
             switch (funct3) {
 
@@ -111,50 +117,56 @@ void disasm(Uint32 a)
                 case 0: case 2: case 3: case 4: case 6: case 7:
 
                     immi = (funct3 == 3 ? immi : immis);
-                    sprintf(ds, "%s %s,%s,%d # $%03x", ialias[funct3], ralias[rd], ralias[rs1], immi, immi & 0xFFF); return;
+                    sprintf(ds, "%s %s,%s,%d # $%03X", ialias[funct3], ralias[rd], ralias[rs1], immi, immi & 0xFFF); return;
             }
 
             break;
+        }
 
         // ПЕРЕХОДЫ
-        case 0x17: sprintf(ds, "AUIPC %s,$%08x", ralias[rd], immu); return;
-        case 0x37: sprintf(ds, "LUI   %s,$%08x", ralias[rd], immu); return;
-        case 0x67:
+        case 0x17: sprintf(ds, "AUIPC %s,$%08X", ralias[rd], immu); return;
+        case 0x37: sprintf(ds, "LUI   %s,$%08X", ralias[rd], immu); return;
+        case 0x67: {
 
             switch (funct3) {
                 case 0: sprintf(ds, "JALR  %s,%d => %s", ralias[rs1], immis & ~1, ralias[rd]); return;
             }
 
             break;
+        }
+        case 0x6F: {
 
-        case 0x6F:
-
-            sprintf(ds, "JAL   %s,$%08x", ralias[rd], a + signex(immj, 21)); return;
+            sprintf(ds, "JAL   $%08X => %s", a + signex(immj, 21), ralias[rd]); return;
+        }
 
         // ЗАГРУЗКА И СОХРАНЕНИЕ
-        case 0x03:
+        case 0x03: {
 
             sprintf(ds, "%s %s,(%s,%d)", lalias[funct3], ralias[rd], ralias[rs1], immis); return;
-
-        case 0x23:
+        }
+        case 0x23: {
 
             sprintf(ds, "%s %s,(%s,%d)", salias[funct3], ralias[rs2], ralias[rs1], signex(imms, 12)); return;
+        }
 
         // УСЛОВНЫЕ ПЕРЕХОДЫ
-        case 0x63:
+        case 0x63: {
 
-            sprintf(ds, "%s %s,%s => %08x", balias[funct3], ralias[rs1], ralias[rs2], immbp); return;
+            sprintf(ds, "%s $%08x,%s,%s", balias[funct3], immbp, ralias[rs1], ralias[rs2]); return;
+        }
 
         // АРИФМЕТИКО-ЛОГИКА
-        case 0x33:
+        case 0x33: {
 
             if      (funct3 == 0 && funct7) funct3 = 10; // SUB
             else if (funct3 == 5 && funct7) funct3 = 11; // SRA
 
             sprintf(ds, "%s %s,%s,%s", aalias[funct3], ralias[rd], ralias[rs1], ralias[rs2]); return;
+        }
     }
 
-    printf("Undefined %02x opcode %08X\n", opcode, inst);
+    // Неизвестная инструкция
+    sprintf(ds, "-");
 }
 
 void step()
@@ -197,7 +209,7 @@ void step()
         // LOAD: Загрузка данных из памяти
         case 0x03: {
 
-            a = RS1(i) + SIGN(IMMI(i), 12);
+            a = RR(RS1(i)) + SIGN(IMMI(i), 12);
 
             switch (FN3(i)) {
 
@@ -214,13 +226,13 @@ void step()
         // STORE: Сохранение данных в память
         case 0x23: {
 
-            a = RS1(i) + SIGN(IMMS(i), 12);
+            a = RR(RS1(i)) + SIGN(IMMS(i), 12);
 
             switch (FN3(i)) {
 
                 case 0: writeb(a, RR(RS2(i))); break;   // SB
-                case 2: writeh(a, RR(RS2(i))); break;   // SH
-                case 3: writew(a, RR(RS2(i))); break;   // SW
+                case 1: writeh(a, RR(RS2(i))); break;   // SH
+                case 2: writew(a, RR(RS2(i))); break;   // SW
             }
 
             break;
@@ -247,5 +259,117 @@ void step()
 
             break;
         }
+
+        // ALU:IMM
+        case 0x13: {
+
+            a = RR(RS1(i));
+            b = SIGN(IMMI(i), 12);
+            t = b & 0x1F;
+
+            switch (FN3(i)) {
+
+                case 0: WR(RD(i), a + b); break;
+                case 2: WR(RD(i), (int)a < (int)b ? 1 : 0); break;  // SLTI
+                case 3: WR(RD(i), a < IMMI(i) ? 1 : 0); break;      // SLTIU
+                case 4: WR(RD(i), a ^ b); break;                    // XORI
+                case 6: WR(RD(i), a | b); break;                    // ORI
+                case 7: WR(RD(i), a & b); break;                    // ANDI
+
+                // SLLI, SRLI, SRAI
+                case 1: WR(RD(i), a << RS2(i)); break;
+                case 5: WR(RD(i), (FN7(i) ? (int) a >> RS2(i) : a >> RS2(i))); break;
+            }
+
+            break;
+        }
+
+        // АЛУ с регистрами
+        case 0x33: {
+
+            a = RR(RS1(i));
+            b = RR(RS2(i));
+            t = b & 0x1F;
+
+            switch (FN3(i)) {
+
+                case 0: WR(RD(i), FN7(i) ? a - b : a + b); break;   // ADD, SUB
+                case 1: WR(RD(i), a << b); break;                   // SLL
+                case 2: WR(RD(i), (int)a < (int)b ? 1 : 0); break;  // SLT
+                case 3: WR(RD(i), a < b ? 1 : 0); break;            // SLTU
+                case 4: WR(RD(i), a ^ b); break;                    // XOR
+                case 5: WR(RD(i), FN7(i) ? (int)a >> t : a >> t); break; // SRL, SRA
+                case 6: WR(RD(i), a | b); break;                     // OR
+                case 7: WR(RD(i), a & b); break;                     // AND
+            }
+
+            break;
+        }
     }
+
+    pc += 4;
+}
+
+// Перерисовать дамп
+void updateDump()
+{
+    char ub[128];
+
+    cls(7);
+
+    linebf(8,     8, 458, 290, 0); // 3
+    lineb (8,     8, 458, 290, 8);
+    lineb (458,   8, 458, 290, 15);
+    lineb (8,   290, 458, 290, 15);
+
+    // дамп
+    for (int i = 0; i <= 0x40; i += 4) {
+
+        int c = 7;
+        if (pc == i) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
+
+        disasm(i);
+        sprintf(ub, "%08X %08X  %s", i, readw(i), ds);
+        print(ub, 12, 12 + 16*(i/4), c);
+    }
+
+    // Регистры
+    for (int i = 0; i < 32; i++) {
+
+        int x = 8 + (i % 6)*13*8;
+        int y = 298 + (i / 6)*16;
+        int v = RR(i);
+
+        sprintf(ub, "%4s", ralias[i]); print(ub, x, y, 0);
+        sprintf(ub, "%08X", v);        print(ub, x+8*5, y, pregs[i] == v ? 8 : 15);
+
+        pregs[i] = v;
+    }
+
+    print("mstatus",  464+8*9, 8,      0); print("00000000", 464, 8,      8);
+    print("mepc",     464+8*9, 8+16*1, 0); print("00000000", 464, 8+16*1, 8);
+    print("mcause",   464+8*9, 8+16*2, 0); print("00000000", 464, 8+16*2, 8);
+    print("mtvec",    464+8*9, 8+16*3, 0); print("00000000", 464, 8+16*3, 8);
+    print("mie",      464+8*9, 8+16*4, 0); print("00000000", 464, 8+16*4, 8);
+    print("mip",      464+8*9, 8+16*5, 0); print("00000000", 464, 8+16*5, 8);
+    print("mtime",    464+8*9, 8+16*6, 0); print("00000000", 464, 8+16*6, 8);
+    print("mtimecmp", 464+8*9, 8+16*7, 0); print("00000000", 464, 8+16*7, 8);
+    print("mscratch", 464+8*9, 8+16*8, 0); print("00000000", 464, 8+16*8, 8);
+}
+
+// Перерисовка всего экрана
+void updateScreen()
+{
+    for (int i = 0; i < 2000; i++)
+    {
+        int x  = i % 80;
+        int y  = i / 80;
+        int a  = 0xB8000 + 2*i;
+        int ch = mem[a];
+        int at = mem[a + 1];
+
+        pchar(ch, x*8, y*16, at & 15, at >> 4);
+    }
+
+    // Поставить или нет аппаратный курсор
 }

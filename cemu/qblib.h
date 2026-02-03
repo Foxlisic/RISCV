@@ -7,6 +7,7 @@ SDL_Renderer*   _renderer = NULL;
 SDL_Texture*    _texture  = NULL;
 SDL_Rect        _dstRect;
 SDL_Event       _evt;
+// --------------------
 Uint32          _palette[256];
 Uint32          _pticks   = 0,
                 _frame    = 0;
@@ -14,6 +15,7 @@ Uint32*         _screen   = NULL;
 Uint16          _width    = 320,
                 _height   = 200,
                 _scale    = 2;
+int             kb_buf[256], kb_size = 0;
 // --------------------
 void    screen(int mode);
 int     quit();
@@ -21,6 +23,7 @@ int     loop(int);
 void    pset(int x, int y, int cl);
 void    line(int x1, int y1, int x2, int y2, int color);
 void    cls(int cl);
+void    kbd_scancode(int scancode, int release);
 // --------------------
 // Задать dos-цвета
 static const Uint32 _doscolor[256] =
@@ -398,11 +401,11 @@ int loop(int delay = 16)
                     return 0;
 
                  case SDL_KEYDOWN:
-                    // kbd_scancode(evt.key.keysym.scancode, 0);
+                    kbd_scancode(_evt.key.keysym.scancode, 0);
                     break;
 
                 case SDL_KEYUP:
-                    // kbd_scancode(evt.key.keysym.scancode, 1);
+                    kbd_scancode(_evt.key.keysym.scancode, 1);
                     break;
             }
         }
@@ -428,6 +431,32 @@ int loop(int delay = 16)
 
         SDL_Delay(1);
     }
+}
+
+// Сканкоды (SDL_SCANCODE_xxx) https://github.com/libsdl-org/SDL/blob/SDL2/include/SDL_scancode.h
+void kbd_scancode(int scancode, int release)
+{
+    if (kb_size < 255) {
+        kb_buf[kb_size] = release ? -scancode : scancode;
+        kb_size++;
+    }
+}
+
+// Вытащить следующую клавишу
+int inkey() {
+
+    if (kb_size) {
+
+        int next = kb_buf[0];
+        for (int i = 0; i < kb_size; i++) {
+            kb_buf[i] = kb_buf[i+1];
+        }
+
+        kb_size--;
+        return next;
+    }
+
+    return 0;
 }
 
 // Установка точки
@@ -472,6 +501,14 @@ void line(int x1, int y1, int x2, int y2, int color)
         if (error2 > -deltay) { error -= deltay; x1 += signx; }   // Коррекция по X
         if (error2 <  deltax) { error += deltax; y1 += signy; }   // Коррекция по Y
     }
+}
+
+void lineb(int x1, int y1, int x2, int y2, int color)
+{
+    line(x1, y1, x2, y1, color);
+    line(x1, y2, x2, y2, color);
+    line(x1, y1, x1, y2, color);
+    line(x2, y1, x2, y2, color);
 }
 
 // Закрашенный блок
