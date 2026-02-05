@@ -14,6 +14,7 @@ int main(int argc, char** argv)
     screen(3);
     init(argc, argv);
 
+    // По умолчанию, выдавать дамп
     updateDump();
 
     while (loop()) {
@@ -22,12 +23,14 @@ int main(int argc, char** argv)
 
         switch (k) {
 
+            // Посмотреть что на экране сейчас в данный момент
             case SDL_SCANCODE_F4:
 
                 wherei = 1 - wherei;
                 if (wherei) updateScreen(); else updateDump();
                 break;
 
+            // Один шаг дампа
             case SDL_SCANCODE_F7: step(); updateDump(); break;
         }
     }
