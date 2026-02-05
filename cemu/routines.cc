@@ -51,10 +51,8 @@ void init(int argc, char** argv)
         else   { printf("PROGRAM NOT FOUND\n"); exit(1); }
     }
 
-    for (int i = 0; i < 32; i++) {
-        regs[i]  = 0;
-        pregs[i] = 0;
-    }
+    for (int i = 0; i < 32; i++) { regs[i]  = 0; pregs[i] = 0; }
+    for (int i = 0; i < 4096; i++) csr[i] = 0;
 }
 
 // Чтение из памяти
@@ -111,50 +109,50 @@ void disasm(Uint32 a)
             switch (funct3) {
 
                 case 1:
-                    sprintf(ds, "SLLI  %s,%s,%d", ralias[rd], ralias[rs1], rs2); return;
+                    sprintf(ds, "SLLI   %s,%s,%d", ralias[rd], ralias[rs1], rs2); return;
 
                 case 5:
-                    sprintf(ds, "%s %s,%s,%d", funct7 ? "SRAI " : "SRLI ", ralias[rd], ralias[rs1], rs2); return;
+                    sprintf(ds, "%s  %s,%s,%d", funct7 ? "SRAI " : "SRLI ", ralias[rd], ralias[rs1], rs2); return;
 
                 case 0: case 2: case 3: case 4: case 6: case 7:
 
                     immi = (funct3 == 3 ? immi : immis);
-                    sprintf(ds, "%s %s,%s,%d # $%03X", ialias[funct3], ralias[rd], ralias[rs1], immi, immi & 0xFFF); return;
+                    sprintf(ds, "%s  %s,%s,%d # $%03X", ialias[funct3], ralias[rd], ralias[rs1], immi, immi & 0xFFF); return;
             }
 
             break;
         }
 
         // ПЕРЕХОДЫ
-        case 0x17: sprintf(ds, "AUIPC %s,$%08X", ralias[rd], immu); return;
-        case 0x37: sprintf(ds, "LUI   %s,$%08X", ralias[rd], immu); return;
+        case 0x17: sprintf(ds, "AUIPC  %s,$%08X", ralias[rd], immu); return;
+        case 0x37: sprintf(ds, "LUI    %s,$%08X", ralias[rd], immu); return;
         case 0x67: {
 
             switch (funct3) {
-                case 0: sprintf(ds, "JALR  %s,%d => %s", ralias[rs1], immis & ~1, ralias[rd]); return;
+                case 0: sprintf(ds, "JALR   %s,%d => %s", ralias[rs1], immis & ~1, ralias[rd]); return;
             }
 
             break;
         }
         case 0x6F: {
 
-            sprintf(ds, "JAL   $%08X => %s", a + signex(immj, 21), ralias[rd]); return;
+            sprintf(ds, "JAL    $%08X => %s", a + signex(immj, 21), ralias[rd]); return;
         }
 
         // ЗАГРУЗКА И СОХРАНЕНИЕ
         case 0x03: {
 
-            sprintf(ds, "%s %s,(%s,%d)", lalias[funct3], ralias[rd], ralias[rs1], immis); return;
+            sprintf(ds, "%s  %s,(%s,%d)", lalias[funct3], ralias[rd], ralias[rs1], immis); return;
         }
         case 0x23: {
 
-            sprintf(ds, "%s %s,(%s,%d)", salias[funct3], ralias[rs2], ralias[rs1], signex(imms, 12)); return;
+            sprintf(ds, "%s  %s,(%s,%d)", salias[funct3], ralias[rs2], ralias[rs1], signex(imms, 12)); return;
         }
 
         // УСЛОВНЫЕ ПЕРЕХОДЫ
         case 0x63: {
 
-            sprintf(ds, "%s $%08x,%s,%s", balias[funct3], immbp, ralias[rs1], ralias[rs2]); return;
+            sprintf(ds, "%s  $%08x,%s,%s", balias[funct3], immbp, ralias[rs1], ralias[rs2]); return;
         }
 
         // АРИФМЕТИКО-ЛОГИКА
@@ -163,7 +161,33 @@ void disasm(Uint32 a)
             if      (funct3 == 0 && funct7) funct3 = 10; // SUB
             else if (funct3 == 5 && funct7) funct3 = 11; // SRA
 
-            sprintf(ds, "%s %s,%s,%s", aalias[funct3], ralias[rd], ralias[rs1], ralias[rs2]); return;
+            sprintf(ds, "%s  %s,%s,%s", aalias[funct3], ralias[rd], ralias[rs1], ralias[rs2]); return;
+        }
+
+        // CSR и управление потоком
+        case 0x73: {
+
+            switch (funct3) {
+
+                case 0:
+
+                    if (rd == 0 && rs1 == 0) {
+
+                        if      (immi == 0x000) { sprintf(ds, "ECALL"); return; }
+                        else if (immi == 0x001) { sprintf(ds, "EBREAK"); return; }
+                        else if (immi == 0x302) { sprintf(ds, "MRET"); return; }
+
+                    }
+
+                    return;
+
+                case 1: sprintf(ds, "CSRRW  %s,$%03x,%s", ralias[rd], immi, ralias[rs1]); return;
+                case 2: sprintf(ds, "CSRRS  %s,$%03x,%s", ralias[rd], immi, ralias[rs1]); return;
+                case 3: sprintf(ds, "CSRRC  %s,$%03x,%s", ralias[rd], immi, ralias[rs1]); return;
+                case 5: sprintf(ds, "CSRRWI %s,$%03x,#%03x", ralias[rd], immi, rs1); return;
+                case 6: sprintf(ds, "CSRRSI %s,$%03x,#%03x", ralias[rd], immi, rs1); return;
+                case 7: sprintf(ds, "CSRRCI %s,$%03x,#%03x", ralias[rd], immi, rs1); return;
+            }
         }
     }
 
@@ -307,6 +331,19 @@ void step()
 
             break;
         }
+
+        // CSR и прочая ботва
+        case 0x73: {
+
+            switch (FN3(i)) {
+
+                case 0:
+
+                    break;
+            }
+
+            break;
+        }
     }
 
     pc += 4;
@@ -338,7 +375,7 @@ void updateDump()
         if (pc == u) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
 
         disasm(u);
-        sprintf(ub, "%08X %08X  %s", i, readw(u), ds);
+        sprintf(ub, "%08X %08X  %s", u, readw(u), ds);
         print(ub, 12, 12 + 16*(i/4), c);
     }
 

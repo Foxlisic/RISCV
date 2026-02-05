@@ -1,10 +1,10 @@
 #include <io.h>
 
-static const char *str = "Hello World!";
-
 void main()
 {
     heaph(vm,0xB8000);
+
+    char *str = "Hello World!";
 
     while (*str) {
 

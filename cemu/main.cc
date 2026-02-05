@@ -4,6 +4,7 @@
 Uint8* mem;
 Uint32 pc;
 Uint32 regs[32], pregs[32];
+Uint32 csr[4096];
 
 #include "routines.cc"
 
