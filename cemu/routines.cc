@@ -16,7 +16,9 @@
 // Знакорасширение n-го бита
 #define SIGN(i,n) (Uint32)(i & (1 << (n-1)) ? i | (0xFFFFFFFF ^ ((1 << n) - 1)) : i)
 
-char   ds[64];
+// Дебаггер
+char    ds[64];
+int     cp = 0;
 
 static const char* ralias[32] = {
     "zero", "ra", "sp",  "gp",  // 0
@@ -322,14 +324,21 @@ void updateDump()
     lineb (458,   8, 458, 290, 15);
     lineb (8,   290, 458, 290, 15);
 
+    // Коррекция вершины
+    if (pc < cp || pc > cp + 0x40) {
+        cp = pc;
+    }
+
     // дамп
     for (int i = 0; i <= 0x40; i += 4) {
 
         int c = 7;
-        if (pc == i) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
+        int u = cp + i;
 
-        disasm(i);
-        sprintf(ub, "%08X %08X  %s", i, readw(i), ds);
+        if (pc == u) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
+
+        disasm(u);
+        sprintf(ub, "%08X %08X  %s", i, readw(u), ds);
         print(ub, 12, 12 + 16*(i/4), c);
     }
 
