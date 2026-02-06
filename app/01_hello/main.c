@@ -2,7 +2,7 @@
 
 void main()
 {
-    heaph(vm,0xB8000);
+    heaph(vm, 0xB8000);
 
     int i;
     char *str = " Hello World! ";

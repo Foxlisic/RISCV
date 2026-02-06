@@ -1,5 +1,7 @@
 #include "qblib.h"
-#define MAX_MEM 0xFFFFF
+
+// 4Mb Memory Maximus
+#define MAX_MEM 0x3FFFFF
 
 Uint8* mem;
 Uint32 pc;

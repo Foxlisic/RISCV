@@ -1,3 +1,14 @@
+// Регистры CSR для управления периферией
+#define D_VIDEOMODE 0x7C0
+
+// Список видеорежимов
+enum VIDEOMODE
+{
+    VM_TEXT = 0,
+    VM_320  = 1,
+    VM_640  = 2,
+};
+
 // Объявление разных региона памяти
 #define heap(A,B,C) volatile unsigned A* B = (unsigned A*) C
 #define heapb(A,B)  heap(char,A,B)

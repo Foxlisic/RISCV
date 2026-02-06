@@ -409,10 +409,11 @@ void updateDump()
         int c = 7;
         int u = cp + i;
 
+        // Курсор находится на точке PC
         if (pc == u) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
 
         disasm(u);
-        sprintf(ub, "%08X %08X  %s", u, readw(u), ds);
+        sprintf(ub, "%08X%c%08X  %s", u, (pc == u ? 0x10 : ' '), readw(u), ds);
         print(ub, 12, 12 + 16*(i/4), c);
     }
 
@@ -443,19 +444,41 @@ void updateDump()
 // Перерисовка всего экрана
 void updateScreen()
 {
-    cursor_t = (cursor_t + 1) % 50;
+    switch (csr[0x7C0]) {
 
-    for (int i = 0; i < 2000; i++)
-    {
-        int x  = i % 80;
-        int y  = i / 80;
-        int a  = 0xB8000 + 2*i;
-        int ch = mem[a];
-        int at = mem[a + 1];
+        // 80x25
+        case 0:
 
-        pchar(ch, x*8, y*16, at & 15, at >> 4);
+            cursor_t = (cursor_t + 1) % 50;
 
-        // Курсор у аппарата!
-        if (cursor == i && cursor_t < 25) { lineb(x*8, y*16+14, x*8+7, y*16+15, at & 15); }
+            for (int i = 0; i < 2000; i++)
+            {
+                int x  = i % 80;
+                int y  = i / 80;
+                int a  = 0xB8000 + 2*i;
+                int ch = mem[a];
+                int at = mem[a + 1];
+
+                pchar(ch, x*8, y*16, at & 15, at >> 4);
+
+                // Курсор у аппарата!
+                if (cursor == i && cursor_t < 25) { lineb(x*8, y*16+14, x*8+7, y*16+15, at & 15); }
+            }
+
+            break;
+
+        // 320x200
+        case 1:
+
+            for (int y = 0; y < 400; y++)
+            for (int x = 0; x < 640; x++) {
+
+                int c = mem[0x100000 + (x >> 1) + (y >> 1)*320];
+                pset(x, y, c);
+            }
+
+            break;
     }
+
+
 }
