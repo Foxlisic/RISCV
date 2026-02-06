@@ -386,8 +386,8 @@ int quit()
     return 0;
 }
 
-// Прием событий
-int loop(int delay = 16)
+// Прием событий раз 50 кадров
+int loop(int delay = 20)
 {
     // Ждать окончания кадра
     for (;;) {

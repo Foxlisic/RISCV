@@ -3,7 +3,7 @@ LB=-nostartfiles -nostdlib -nodefaultlibs
 
 all: comp dump run
 comp:
-	$(RC)-gcc -march=rv32i_zicsr -mabi=ilp32 -Os $(LB) -I.. -T ../linker.ld ../crt.s main.c -o main.elf -lgcc
+	$(RC)-gcc -march=rv32i2p0 -mabi=ilp32 -Os $(LB) -I.. -T ../linker.ld ../crt.s main.c -o main.elf -lgcc
 	$(RC)-objcopy -O binary main.elf main.bin
 dump:
 	$(RC)-objdump -S main.elf > dump.lst

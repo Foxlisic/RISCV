@@ -8,12 +8,12 @@ Uint32 csr[4096];
 
 #include "routines.cc"
 
+// --------------------------------
+
 int main(int argc, char** argv)
 {
-    int wherei = 0;
-
-    screen(3);
     init(argc, argv);
+    screen(3);
 
     // По умолчанию, выдавать дамп
     updateDump();
@@ -22,17 +22,53 @@ int main(int argc, char** argv)
 
         int k = inkey();
 
-        switch (k) {
+        // В активном запуске
+        if (run) {
 
-            // Посмотреть что на экране сейчас в данный момент
-            case SDL_SCANCODE_F4:
+            // Шагомер по N-кадров x 50 = 25M инструкции
+            for (int i = 0; i < 500000; i++) {
 
-                wherei = 1 - wherei;
-                if (wherei) updateScreen(); else updateDump();
-                break;
+                step();
 
-            // Один шаг дампа
-            case SDL_SCANCODE_F7: step(); updateDump(); break;
+                // Остановка исполнения
+                if (ebreak) { pc -= 4; break; }
+            }
+
+            // Остановка в развитии событии
+            if (k == SDL_SCANCODE_F12) {
+                ebreak = 1;
+            } else {
+                updateScreen(); // Обновить экран каждые 1/50 сек
+            }
+
+            // Выход и просмотр что там наработало
+            if (ebreak) {
+
+                run = 0;
+                updateDump();
+            }
+
+        } else {
+
+            // Чисто по-приколу (ня, десу, кавай, штааа!, шлёп губошлёп)
+            switch (k) {
+
+                // Посмотреть что на экране сейчас в данный момент
+                case SDL_SCANCODE_F4:
+
+                    wherei = 1 - wherei;
+                    if (wherei) updateScreen(); else updateDump();
+                    break;
+
+                // Запуск программы
+                case SDL_SCANCODE_F9:
+
+                    run = 1;
+                    break;
+
+                // Один шаг дампа
+                case SDL_SCANCODE_F7: step(); updateDump(); break;
+            }
         }
     }
 

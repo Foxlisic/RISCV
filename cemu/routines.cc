@@ -19,6 +19,10 @@
 // Дебаггер
 char    ds[64];
 int     cp = 0;
+int     run = 0;
+int     wherei = 0;
+int     cursor = 0, cursor_t = 0;
+int     ebreak = 0;
 
 static const char* ralias[32] = {
     "zero", "ra", "sp",  "gp",  // 0
@@ -181,9 +185,9 @@ void disasm(Uint32 a)
 
                     return;
 
-                case 1: sprintf(ds, "CSRRW  %s,$%03x,%s", ralias[rd], immi, ralias[rs1]); return;
-                case 2: sprintf(ds, "CSRRS  %s,$%03x,%s", ralias[rd], immi, ralias[rs1]); return;
-                case 3: sprintf(ds, "CSRRC  %s,$%03x,%s", ralias[rd], immi, ralias[rs1]); return;
+                case 1: sprintf(ds, "CSRRW  %s,$%03x,%s",    ralias[rd], immi, ralias[rs1]); return;
+                case 2: sprintf(ds, "CSRRS  %s,$%03x,%s",    ralias[rd], immi, ralias[rs1]); return;
+                case 3: sprintf(ds, "CSRRC  %s,$%03x,%s",    ralias[rd], immi, ralias[rs1]); return;
                 case 5: sprintf(ds, "CSRRWI %s,$%03x,#%03x", ralias[rd], immi, rs1); return;
                 case 6: sprintf(ds, "CSRRSI %s,$%03x,#%03x", ralias[rd], immi, rs1); return;
                 case 7: sprintf(ds, "CSRRCI %s,$%03x,#%03x", ralias[rd], immi, rs1); return;
@@ -195,10 +199,21 @@ void disasm(Uint32 a)
     sprintf(ds, "-");
 }
 
+// CSR -------------------
+void ecall() { }
+void mret()  { }
+// -----------------------
+
 void step()
 {
     Uint32 i = readw(pc);
     Uint32 t = 0, a, b;
+
+    // Undefined Instruction
+    int ud = 1;
+
+    // Сбрасываем этот параметр снова
+    ebreak = 0;
 
     switch (i & 0x7F) {
 
@@ -206,6 +221,7 @@ void step()
         case 0x37: {
 
             WR(RD(i), IMM20(i));
+            ud = 0;
             break;
         }
 
@@ -213,6 +229,7 @@ void step()
         case 0x17: {
 
             WR(RD(i), pc + IMM20(i));
+            ud = 0;
             break;
         }
 
@@ -221,6 +238,7 @@ void step()
 
             WR(RD(i), pc + 4);
             pc += SIGN(IMMJ(i), 21);
+            ud = 0;
             return;
         }
 
@@ -229,6 +247,7 @@ void step()
 
             WR(RD(i), pc + 4);
             pc = RR(RS1(i)) + (SIGN(i >> 20, 12) & ~1);
+            ud = 0;
             return;
         }
 
@@ -239,11 +258,11 @@ void step()
 
             switch (FN3(i)) {
 
-                case 0: WR(RD(i), SIGN(readb(a), 8)); break;    // LB
-                case 1: WR(RD(i), SIGN(readh(a), 16)); break;   // LH
-                case 2: WR(RD(i), readw(a)); break;             // LW
-                case 4: WR(RD(i), readb(a)); break;             // LBU
-                case 5: WR(RD(i), readh(a)); break;             // LHU
+                case 0: ud = 0; WR(RD(i), SIGN(readb(a), 8)); break;    // LB
+                case 1: ud = 0; WR(RD(i), SIGN(readh(a), 16)); break;   // LH
+                case 2: ud = 0; WR(RD(i), readw(a)); break;             // LW
+                case 4: ud = 0; WR(RD(i), readb(a)); break;             // LBU
+                case 5: ud = 0; WR(RD(i), readh(a)); break;             // LHU
             }
 
             break;
@@ -256,9 +275,9 @@ void step()
 
             switch (FN3(i)) {
 
-                case 0: writeb(a, RR(RS2(i))); break;   // SB
-                case 1: writeh(a, RR(RS2(i))); break;   // SH
-                case 2: writew(a, RR(RS2(i))); break;   // SW
+                case 0: ud = 0; writeb(a, RR(RS2(i))); break;   // SB
+                case 1: ud = 0; writeh(a, RR(RS2(i))); break;   // SH
+                case 2: ud = 0; writew(a, RR(RS2(i))); break;   // SW
             }
 
             break;
@@ -272,12 +291,12 @@ void step()
 
             switch (FN3(i)) {
 
-                case 0: t = (a == b); break;    // BEQ
-                case 1: t = (a != b); break;    // BNE
-                case 4: t = ((int)a <  (int)b); break; // BLT
-                case 5: t = ((int)a >= (int)b); break; // BGE
-                case 6: t = a <  b; break;      // BLTU
-                case 7: t = a >= b; break;      // BGEU
+                case 0: ud = 0; t = (a == b); break;    // BEQ
+                case 1: ud = 0; t = (a != b); break;    // BNE
+                case 4: ud = 0; t = ((int)a <  (int)b); break; // BLT
+                case 5: ud = 0; t = ((int)a >= (int)b); break; // BGE
+                case 6: ud = 0; t = a <  b; break;      // BLTU
+                case 7: ud = 0; t = a >= b; break;      // BGEU
             }
 
             // Выполнить переход, если совпало условие
@@ -295,16 +314,16 @@ void step()
 
             switch (FN3(i)) {
 
-                case 0: WR(RD(i), a + b); break;
-                case 2: WR(RD(i), (int)a < (int)b ? 1 : 0); break;  // SLTI
-                case 3: WR(RD(i), a < IMMI(i) ? 1 : 0); break;      // SLTIU
-                case 4: WR(RD(i), a ^ b); break;                    // XORI
-                case 6: WR(RD(i), a | b); break;                    // ORI
-                case 7: WR(RD(i), a & b); break;                    // ANDI
+                case 0: ud = 0; WR(RD(i), a + b); break;
+                case 2: ud = 0; WR(RD(i), (int)a < (int)b ? 1 : 0); break;  // SLTI
+                case 3: ud = 0; WR(RD(i), a < IMMI(i) ? 1 : 0); break;      // SLTIU
+                case 4: ud = 0; WR(RD(i), a ^ b); break;                    // XORI
+                case 6: ud = 0; WR(RD(i), a | b); break;                    // ORI
+                case 7: ud = 0; WR(RD(i), a & b); break;                    // ANDI
 
                 // SLLI, SRLI, SRAI
-                case 1: WR(RD(i), a << RS2(i)); break;
-                case 5: WR(RD(i), (FN7(i) ? (int) a >> RS2(i) : a >> RS2(i))); break;
+                case 1: ud = 0; WR(RD(i), a << RS2(i)); break;
+                case 5: ud = 0; WR(RD(i), (FN7(i) ? (int) a >> RS2(i) : a >> RS2(i))); break;
             }
 
             break;
@@ -316,6 +335,7 @@ void step()
             a = RR(RS1(i));
             b = RR(RS2(i));
             t = b & 0x1F;
+            ud = 0;
 
             switch (FN3(i)) {
 
@@ -335,11 +355,28 @@ void step()
         // CSR и прочая ботва
         case 0x73: {
 
+            a = IMMI(i);
+
             switch (FN3(i)) {
 
                 case 0:
 
+                    if (RD(i) == 0 && RS1(i) == 0) {
+
+                        if      (a == 0x000) { ud = 0; ecall();    return; } // ECALL
+                        else if (a == 0x001) { ud = 0; ebreak = 1; break;  } // EBREAK
+                        else if (a == 0x302) { ud = 0; mret();     return; } // MRET
+                    }
+
                     break;
+
+                // Чтение и запись в CSR
+                case 1: WR(RD(i), csr[a]); csr[a]  =  RR(RS1(i)); break; // CSRRW
+                case 2: WR(RD(i), csr[a]); csr[a] |=  RR(RS1(i)); break; // CSRRS
+                case 3: WR(RD(i), csr[a]); csr[a] &= ~RR(RS1(i)); break; // CSRRC
+                case 5: WR(RD(i), csr[a]); csr[a]  =  RS1(i); break;     // CSRRWI
+                case 6: WR(RD(i), csr[a]); csr[a] |=  RS1(i); break;     // CSRRSI
+                case 7: WR(RD(i), csr[a]); csr[a] &= ~RS1(i); break;     // CSRRCI
             }
 
             break;
@@ -406,6 +443,8 @@ void updateDump()
 // Перерисовка всего экрана
 void updateScreen()
 {
+    cursor_t = (cursor_t + 1) % 50;
+
     for (int i = 0; i < 2000; i++)
     {
         int x  = i % 80;
@@ -415,7 +454,8 @@ void updateScreen()
         int at = mem[a + 1];
 
         pchar(ch, x*8, y*16, at & 15, at >> 4);
-    }
 
-    // Поставить или нет аппаратный курсор
+        // Курсор у аппарата!
+        if (cursor == i && cursor_t < 25) { lineb(x*8, y*16+14, x*8+7, y*16+15, at & 15); }
+    }
 }
