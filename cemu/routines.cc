@@ -15,6 +15,7 @@
 
 // Знакорасширение n-го бита
 #define SIGN(i,n) (Uint32)(i & (1 << (n-1)) ? i | (0xFFFFFFFF ^ ((1 << n) - 1)) : i)
+#define SIGN32(x) (x & 0x80000000 ? x | 0xFFFFFFFF00000000 : x)
 
 // Дебаггер
 char    ds[64];
@@ -35,11 +36,19 @@ static const char* ralias[32] = {
     "t3",   "t4", "t5",  "t6",  // 28
 };
 
-static const char* balias[8]  = {"BEQ  ", "BNE  ", "B?2  ", "B?3  ", "BLT  ", "BGE  ", "BLTU ", "BGEU "};
-static const char* ialias[8]  = {"ADDI ", "#    ", "SLTI ", "SLTUI", "XORI ", "ORI  ", "?6   ", "ANDI "};
-static const char* lalias[8]  = {"LB   ", "LH   ", "LW   ", "L?3  ", "LBU  ", "LHU  ", "L?6  ", "L?7  "};
-static const char* salias[8]  = {"SB   ", "SH   ", "SW   ", "S?3  ", "S?4  ", "S?5  ", "S?6  ", "S?7  "};
-static const char* aalias[10] = {"ADD  ", "SLL  ", "SLT  ", "SLTU ", "XOR  ", "SRL  ", "OR   ", "AND  ", "SUB  ", "SRA  "};
+static const int regmap[32] = {
+    /* c */ 0,1,2,3,4,
+    /* t */ 5,6,7,28,29,30,31,
+    /* s */ 8,9,18,19,20,21,22,23,24,25,26,27,
+    /* a */ 10,11,12,13,14,15,16,17
+};
+
+static const char* balias[8]  = {"BEQ  ", "BNE  ", "B?2  ",  "B?3  ", "BLT  ", "BGE  ", "BLTU ", "BGEU "};
+static const char* ialias[8]  = {"ADDI ", "#    ", "SLTI ",  "SLTUI", "XORI ", "ORI  ", "?6   ", "ANDI "};
+static const char* lalias[8]  = {"LB   ", "LH   ", "LW   ",  "L?3  ", "LBU  ", "LHU  ", "L?6  ", "L?7  "};
+static const char* salias[8]  = {"SB   ", "SH   ", "SW   ",  "S?3  ", "S?4  ", "S?5  ", "S?6  ", "S?7  "};
+static const char* aalias[10] = {"ADD  ", "SLL  ", "SLT  ",  "SLTU ", "XOR  ", "SRL  ", "OR   ", "AND  ", "SUB  ", "SRA  "};
+static const char* malias[8]  = {"MUL  ", "MULH ", "MULHSU", "MULHU", "DIV  ", "DIVU ", "REM  ", "REMU "};
 
 // Старт и загрузка в память файла
 void init(int argc, char** argv)
@@ -162,10 +171,18 @@ void disasm(Uint32 a)
         // АРИФМЕТИКО-ЛОГИКА
         case 0x33: {
 
-            if      (funct3 == 0 && funct7) funct3 = 10; // SUB
-            else if (funct3 == 5 && funct7) funct3 = 11; // SRA
+            if (funct7 == 1) {
 
-            sprintf(ds, "%s  %s,%s,%s", aalias[funct3], ralias[rd], ralias[rs1], ralias[rs2]); return;
+                sprintf(ds, "%s  %s,%s,%s", malias[funct3], ralias[rd], ralias[rs1], ralias[rs2]); return;
+                return;
+
+            } else {
+
+                if      (funct3 == 0 && funct7) funct3 = 8; // SUB
+                else if (funct3 == 5 && funct7) funct3 = 9; // SRA
+
+                sprintf(ds, "%s  %s,%s,%s", aalias[funct3], ralias[rd], ralias[rs1], ralias[rs2]); return;
+            }
         }
 
         // CSR и управление потоком
@@ -208,6 +225,7 @@ void step()
 {
     Uint32 i = readw(pc);
     Uint32 t = 0, a, b;
+    Uint64 m1, m2, m3;
 
     // Undefined Instruction
     int ud = 1;
@@ -337,16 +355,58 @@ void step()
             t = b & 0x1F;
             ud = 0;
 
-            switch (FN3(i)) {
+            // Расширение M
+            if (FN7(i) == 0x001) {
 
-                case 0: WR(RD(i), FN7(i) ? a - b : a + b); break;   // ADD, SUB
-                case 1: WR(RD(i), a << b); break;                   // SLL
-                case 2: WR(RD(i), (int)a < (int)b ? 1 : 0); break;  // SLT
-                case 3: WR(RD(i), a < b ? 1 : 0); break;            // SLTU
-                case 4: WR(RD(i), a ^ b); break;                    // XOR
-                case 5: WR(RD(i), FN7(i) ? (int)a >> t : a >> t); break; // SRL, SRA
-                case 6: WR(RD(i), a | b); break;                     // OR
-                case 7: WR(RD(i), a & b); break;                     // AND
+                switch (FN3(i)) {
+
+                    case 0: WR(RD(i), a*b); break; // MUL
+                    case 1: WR(RD(i), (Uint64)(SIGN32(a) * SIGN32(b)) >> 32); break; // MULH
+                    case 2: WR(RD(i), (Uint64)(SIGN32(a) * b) >> 32); break; // MULHSU
+                    case 3: WR(RD(i), (Uint64)(a * b) >> 32); break; // MULHU
+                    case 4: { // DIV
+
+                        if (a == 0x80000000 && b == -1) {
+                            t = a; // Переполнение
+                        } else if (b == 0) {
+                            t = -1; // Деление на ноль
+                        } else {
+                            t = ((int) a / (int) b);
+                        }
+
+                        WR(RD(i), t);
+                        break;
+                    }
+                    case 5: WR(RD(i), b ? a / b : -1); break; // DIVU
+                    case 6: { // REM: Знаковое
+
+                        if (a == 0x80000000 && b == -1 || b == 0) {
+                            t = 0;
+                        } else {
+                            t = (int) a % (int) b;
+                        }
+
+                        WR(RD(i), t);
+                        break;
+                    }
+
+                    case 7: WR(RD(i), b ? a % b : 0); break; // REMU
+                }
+
+            } else {
+
+                // Обычное АЛУ
+                switch (FN3(i)) {
+
+                    case 0: WR(RD(i), FN7(i) ? a - b : a + b); break;   // ADD, SUB
+                    case 1: WR(RD(i), a << b); break;                   // SLL
+                    case 2: WR(RD(i), (int)a < (int)b ? 1 : 0); break;  // SLT
+                    case 3: WR(RD(i), a < b ? 1 : 0); break;            // SLTU
+                    case 4: WR(RD(i), a ^ b); break;                    // XOR
+                    case 5: WR(RD(i), FN7(i) ? (int)a >> t : a >> t); break; // SRL, SRA
+                    case 6: WR(RD(i), a | b); break;                     // OR
+                    case 7: WR(RD(i), a & b); break;                     // AND
+                }
             }
 
             break;
@@ -420,11 +480,12 @@ void updateDump()
     // Регистры
     for (int i = 0; i < 32; i++) {
 
+        int m = regmap[i];
         int x = 8 + (i % 6)*13*8;
         int y = 298 + (i / 6)*16;
-        int v = RR(i);
+        int v = RR(m);
 
-        sprintf(ub, "%4s", ralias[i]); print(ub, x, y, 0);
+        sprintf(ub, "%4s", ralias[m]); print(ub, x, y, 0);
         sprintf(ub, "%08X", v);        print(ub, x+8*5, y, pregs[i] == v ? 8 : 15);
 
         pregs[i] = v;
@@ -467,17 +528,26 @@ void updateScreen()
 
             break;
 
-        // 320x200
+        // 640x400
         case 1:
 
             for (int y = 0; y < 400; y++)
             for (int x = 0; x < 640; x++) {
-
-                int c = mem[0x100000 + (x >> 1) + (y >> 1)*320];
-                pset(x, y, c);
+                pset(x, y, mem[0x100000 + x + y*640] & 15);
             }
 
             break;
+
+        // 320x200
+        case 2:
+
+            for (int y = 0; y < 400; y++)
+            for (int x = 0; x < 640; x++) {
+                pset(x, y, mem[0x100000 + (x >> 1) + (y >> 1)*320]);
+            }
+
+            break;
+
     }
 
 

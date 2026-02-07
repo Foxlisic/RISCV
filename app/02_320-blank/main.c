@@ -11,8 +11,9 @@ void main()
 
         for (int y = 0; y < 200; y++)
         for (int x = 0; x < 256; x++) {
-            vm[x + y*320] = x + y + k;
+            vm[x + y*320 + 32] = ((x * y) >> 8) + k;
         }
+
         k++;
     }
 }
