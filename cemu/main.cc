@@ -27,6 +27,10 @@ int main(int argc, char** argv)
         // В активном запуске
         if (run) {
 
+            // Добавление кода нажатия клавиши ASCII
+            if      (k > 0) { kb_key_ascii = kb_ascii(k, 1); kb_hit_ascii = kb_key_ascii ? 1 : 0; }
+            else if (k < 0) { kb_ascii(-k, 0); }
+
             // Шагомер по N-кадров x 50 = 25M инструкции
             int i = 0; while (i < 500000) { i += step(); if (ebreak) break; }
 

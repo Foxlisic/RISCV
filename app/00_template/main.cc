@@ -1,6 +1,7 @@
 #include <io.h>
 
-void main()
+int main()
 {
     heaph(vm, 0x100000);
+    return 0;
 }

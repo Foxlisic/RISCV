@@ -25,6 +25,9 @@ int     wherei = 0;
 int     cursor = 0, cursor_t = 0;
 int     ebreak = 0;
 
+// Периферийные устройства
+int     kb_hit_ascii = 0, kb_key_ascii = 0;
+
 static const char* ralias[32] = {
     "zero", "ra", "sp",  "gp",  // 0
     "tp",   "t0", "t1",  "t2",  // 4
@@ -69,14 +72,49 @@ void init(int argc, char** argv)
 }
 
 // Чтение из памяти
-Uint8  readb(Uint32 a) { return mem[a & MAX_MEM]; }
-Uint16 readh(Uint32 a) { return readb(a) + readb(a+1)*256; }
-Uint32 readw(Uint32 a) { return readh(a) + readh(a+2)*65536; }
+Uint8 readb(Uint32 a)
+{
+    int t;
+
+    if (a > MAX_MEM) {
+
+        switch (a) {
+
+            // Было зафиксировано нажатие на клавишу и получение кода ASCII
+            case 0xC0000000: t = kb_hit_ascii; kb_hit_ascii = 0; return t;
+            case 0xC0001000: return kb_key_ascii;
+
+            default: return 0;
+
+        }
+
+    } else {
+        return mem[a & MAX_MEM];
+    }
+}
 
 // Запись в память
-void   writeb(Uint32 a, Uint8  b) { mem[a & MAX_MEM] = b; }
-void   writeh(Uint32 a, Uint16 b) { writeb(a, b); writeb(a + 1, b >> 8); }
-void   writew(Uint32 a, Uint32 b) { writeh(a, b); writeb(a + 2, b >> 16); }
+void writeb(Uint32 a, Uint8 b)
+{
+    if (a > MAX_MEM) {
+
+        switch (a) {
+
+            case 0xC0002000: cursor = (cursor & 0xFF00) | b; break;
+            case 0xC0002001: cursor = (cursor & 0x00FF) | (b << 8); break;
+
+        }
+
+    } else {
+        mem[a & MAX_MEM] = b;
+    }
+}
+
+Uint16  readh(Uint32 a) { return readb(a) + readb(a+1)*256; }
+Uint32  readw(Uint32 a) { return readh(a) + readh(a+2)*65536; }
+
+void    writeh(Uint32 a, Uint16 b) { writeb(a, b); writeb(a + 1, b >> 8); }
+void    writew(Uint32 a, Uint32 b) { writeh(a, b); writeb(a + 2, b >> 16); }
 
 // Знакорасширение для вывода на экран
 int signex(Uint32 i, int size)
@@ -561,5 +599,4 @@ void updateScreen()
 
             break;
     }
-
 }

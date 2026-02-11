@@ -20,6 +20,7 @@ enum VIDEOMODE
 #define heapb(A,B)  heap(unsigned char,A,B)
 #define heaph(A,B)  heap(unsigned short,A,B)
 #define heapw(A,B)  heap(unsigned int,A,B)
+#define str(A,B)    char A[B]
 #define brk         asm("ebreak")
 
 // Работа с CSR, reg-номер регистра CSR, val-значение на запись

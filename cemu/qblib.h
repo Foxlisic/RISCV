@@ -15,7 +15,7 @@ Uint32*         _screen   = NULL;
 Uint16          _width    = 320,
                 _height   = 200,
                 _scale    = 2;
-int             kb_buf[256], kb_size = 0;
+int             kb_buf[256], kb_size = 0, key_shift = 0;
 // --------------------
 void    screen(int mode);
 int     quit();
@@ -322,6 +322,25 @@ static const unsigned char dos866[4096] =
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
+// Маппинг клавиш
+enum KBASCII
+{
+    key_PGUP        = 0x01,
+    key_PGDN        = 0x02,
+    key_UP          = 0x03,
+    key_RIGHT       = 0x04,
+    key_DOWN        = 0x05,
+    key_LEFT        = 0x06,
+    key_DEL         = 0x07,
+    key_BS          = 0x08,
+    key_TAB         = 0x09,
+    key_ENTER       = 0x0A,
+    key_INS         = 0x0B,
+    key_HOME        = 0x0C,
+    key_END         = 0x0D,
+    key_ESC         = 0x1B,
+};
+
 // Инициализация окна SDL2
 void screen(int mode = 13)
 {
@@ -433,10 +452,104 @@ int loop(int delay = 20)
     }
 }
 
+// Получение ASCII по сканкоду
+int kb_ascii(int scancode, int press)
+{
+    int sh = key_shift;
+
+    switch (scancode)
+    {
+        /* A */   case SDL_SCANCODE_A: return sh ? 'A' : 'a';
+        /* B */   case SDL_SCANCODE_B: return sh ? 'B' : 'b';
+        /* C */   case SDL_SCANCODE_C: return sh ? 'C' : 'c';
+        /* D */   case SDL_SCANCODE_D: return sh ? 'D' : 'd';
+        /* E */   case SDL_SCANCODE_E: return sh ? 'E' : 'e';
+        /* F */   case SDL_SCANCODE_F: return sh ? 'F' : 'f';
+        /* G */   case SDL_SCANCODE_G: return sh ? 'G' : 'g';
+        /* H */   case SDL_SCANCODE_H: return sh ? 'H' : 'h';
+        /* I */   case SDL_SCANCODE_I: return sh ? 'I' : 'i';
+        /* J */   case SDL_SCANCODE_J: return sh ? 'J' : 'j';
+        /* K */   case SDL_SCANCODE_K: return sh ? 'K' : 'k';
+        /* L */   case SDL_SCANCODE_L: return sh ? 'L' : 'l';
+        /* M */   case SDL_SCANCODE_M: return sh ? 'M' : 'm';
+        /* N */   case SDL_SCANCODE_N: return sh ? 'N' : 'n';
+        /* O */   case SDL_SCANCODE_O: return sh ? 'O' : 'o';
+        /* P */   case SDL_SCANCODE_P: return sh ? 'P' : 'p';
+        /* Q */   case SDL_SCANCODE_Q: return sh ? 'Q' : 'q';
+        /* R */   case SDL_SCANCODE_R: return sh ? 'R' : 'r';
+        /* S */   case SDL_SCANCODE_S: return sh ? 'S' : 's';
+        /* T */   case SDL_SCANCODE_T: return sh ? 'T' : 't';
+        /* U */   case SDL_SCANCODE_U: return sh ? 'U' : 'u';
+        /* V */   case SDL_SCANCODE_V: return sh ? 'V' : 'v';
+        /* W */   case SDL_SCANCODE_W: return sh ? 'W' : 'w';
+        /* X */   case SDL_SCANCODE_X: return sh ? 'X' : 'x';
+        /* Y */   case SDL_SCANCODE_Y: return sh ? 'Y' : 'y';
+        /* Z */   case SDL_SCANCODE_Z: return sh ? 'Z' : 'z';
+
+        /* 0 */   case SDL_SCANCODE_0: return sh ? ')' : '0';
+        /* 1 */   case SDL_SCANCODE_1: return sh ? '!' : '1';
+        /* 2 */   case SDL_SCANCODE_2: return sh ? '@' : '2';
+        /* 3 */   case SDL_SCANCODE_3: return sh ? '#' : '3';
+        /* 4 */   case SDL_SCANCODE_4: return sh ? '$' : '4';
+        /* 5 */   case SDL_SCANCODE_5: return sh ? '%' : '5';
+        /* 6 */   case SDL_SCANCODE_6: return sh ? '^' : '6';
+        /* 7 */   case SDL_SCANCODE_7: return sh ? '&' : '7';
+        /* 8 */   case SDL_SCANCODE_8: return sh ? '*' : '8';
+        /* 9 */   case SDL_SCANCODE_9: return sh ? '(' : '9';
+
+        // Клавиши отдельные
+        /* ` */    case SDL_SCANCODE_GRAVE:         return sh ? '~' : '`';
+        /* - */    case SDL_SCANCODE_MINUS:         return sh ? '_' : '-';
+        /* = */    case SDL_SCANCODE_EQUALS:        return sh ? '+' : '=';
+        /* \ */    case SDL_SCANCODE_BACKSLASH:     return sh ? '|' : '\\';
+        /* [ */    case SDL_SCANCODE_LEFTBRACKET:   return sh ? '{' : '[';
+        /* ] */    case SDL_SCANCODE_RIGHTBRACKET:  return sh ? '}' : ']';
+        /* ; */    case SDL_SCANCODE_SEMICOLON:     return sh ? ':' : ';';
+        /* ' */    case SDL_SCANCODE_APOSTROPHE:    return sh ? '|' : '\'';
+        /* , */    case SDL_SCANCODE_COMMA:         return sh ? '<' : ',';
+        /* . */    case SDL_SCANCODE_PERIOD:        return sh ? '>' : '.';
+        /* / */    case SDL_SCANCODE_SLASH:         return sh ? '?' : '/';
+        /* bs */   case SDL_SCANCODE_BACKSPACE:     return key_BS;
+        /* sp */   case SDL_SCANCODE_SPACE:         return ' ';
+        /* tb */   case SDL_SCANCODE_TAB:           return key_TAB;
+        /* ls */   case SDL_SCANCODE_LSHIFT:        key_shift = press; return 0;
+        /* la */   case SDL_SCANCODE_LALT:          return 0;
+        /* lc */   case SDL_SCANCODE_LCTRL:         return 0;
+        /* en */   case SDL_SCANCODE_RETURN:        return key_ENTER;
+        /* es */   case SDL_SCANCODE_ESCAPE:        return key_ESC;
+        /* Ins  */ case SDL_SCANCODE_INSERT:        return key_INS;
+        /* Home */ case SDL_SCANCODE_HOME:          return key_HOME;
+        /* PgUp */ case SDL_SCANCODE_PAGEUP:        return key_PGUP;
+        /* Del  */ case SDL_SCANCODE_DELETE:        return key_DEL;
+        /* End  */ case SDL_SCANCODE_END:           return key_END;
+        /* PgDn */ case SDL_SCANCODE_PAGEDOWN:      return key_PGDN;
+        /* RT  */  case SDL_SCANCODE_RIGHT:         return key_RIGHT;
+        /* LF  */  case SDL_SCANCODE_LEFT:          return key_LEFT;
+        /* DN  */  case SDL_SCANCODE_DOWN:          return key_DOWN;
+        /* UP  */  case SDL_SCANCODE_UP:            return key_UP;
+
+        // /* F1  */  case SDLK_F1:            return key_F1;
+        // /* F2  */  case SDLK_F2:            return key_F2;
+        // /* F3  */  case SDLK_F3:            return key_F3;
+        // /* F4  */  case SDLK_F4:            return key_F4;
+        // /* F5  */  case SDLK_F5:            return key_F5;
+        // /* F6  */  case SDLK_F6:            return key_F6;
+        // /* F7  */  case SDLK_F7:            return key_F7;
+        // /* F8  */  case SDLK_F8:            return key_F8;
+        // /* F9  */  case SDLK_F9:            return key_F9;
+        // /* F10 */  case SDLK_F10:           return key_F10;
+        // /* F11 */  case SDLK_F11:           return key_F11;
+        // /* F12 */  case SDLK_F12:           return key_F12;
+    }
+
+    return 0;
+}
+
 // Сканкоды (SDL_SCANCODE_xxx) https://github.com/libsdl-org/SDL/blob/SDL2/include/SDL_scancode.h
 void kbd_scancode(int scancode, int release)
 {
     if (kb_size < 255) {
+
         kb_buf[kb_size] = release ? -scancode : scancode;
         kb_size++;
     }

@@ -1,4 +1,3 @@
-
 // Включить режим экрана
 void screen(int i)
 {
@@ -11,6 +10,23 @@ void screen(int i)
     }
 }
 
+// Установка курсора, в том числе аппаратного, если есть
+void locate(int x, int y)
+{
+    heapw(kk, 0xC0002000);
+
+    cursor_x = x;
+    cursor_y = y;
+
+    kk[0] = x + y*80;
+}
+
+// Установка текущего цвета
+void color(int c)
+{
+    cursor_a = c;
+}
+
 // Очистка экрана
 void cls(int c)
 {
@@ -21,7 +37,9 @@ void cls(int c)
         case VM_TEXT:
 
             for (int i = 0; i < 2000; i++) vm[i] = (c << 8);
-            cursor_a = c;
+
+            locate(0, 0);
+            color(c);
             break;
     }
 }
@@ -73,18 +91,6 @@ void line(int x1, int y1, int x2, int y2, u8 c)
     }
 }
 
-// Установка курсора, в том числе аппаратного, если есть
-void locate(int x, int y)
-{
-    cursor_x = x;
-    cursor_y = y;
-}
-
-// Установка текущего цвета
-void color(int c)
-{
-    cursor_a = c;
-}
 
 // Печать зависит от выбранного режима экрана
 void pchar(unsigned char c)
@@ -106,4 +112,68 @@ void print(const char* s)
 {
     int i = 0;
     while (s[i]) { pchar(s[i++]); }
+    locate(cursor_x, cursor_y);
+}
+
+// Проверка принятой клавиши от клавиатуры
+inline int kbhit()
+{
+    heapb(kk, 0xC0000000);
+    return kk[0];
+}
+
+// Какой код от клавиатуры
+inline unsigned char kbcode()
+{
+    heapb(kk, 0xC0001000);
+    return kk[0];
+}
+
+int input(char* s, int max = 3)
+{
+    int length = 0;
+
+    for (;;) {
+
+        if (kbhit()) {
+
+            int ch = kbcode();
+
+            switch (ch) {
+
+                // ENTER
+                case 10:
+
+                    return length;
+
+                // BACKSPACE
+                case 8:
+
+                    if (length > 0) {
+
+                        cursor_x--;
+                        pchar(' ');
+                        locate(--cursor_x, cursor_y);
+                        s[length--] = 0;
+                    }
+
+                    break;
+
+                // ДОБАВИМ СИМВОЛ
+                default:
+
+                    if (length < max) {
+
+                        s[length++] = ch;
+                        s[length] = 0;
+
+                        pchar(ch);
+                        locate(cursor_x, cursor_y);
+                    }
+
+                    break;
+            }
+        }
+
+    }
 }
