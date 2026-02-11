@@ -1,5 +1,5 @@
 // Регистры CSR для управления периферией
-#define D_VIDEOMODE 0x7C0
+#define D_VIDEOMODE     0x7C0
 
 // Список видеорежимов
 enum VIDEOMODE
@@ -9,11 +9,16 @@ enum VIDEOMODE
     VM_320  = 2,
 };
 
+#define uint    unsigned int
+#define u16     unsigned short
+#define u8      unsigned char
+#define uint8   unsigned char
+
 // Объявление разных региона памяти
-#define heap(A,B,C) volatile unsigned A* B = (unsigned A*) C
-#define heapb(A,B)  heap(char,A,B)
-#define heaph(A,B)  heap(short,A,B)
-#define heapw(A,B)  heap(int,A,B)
+#define heap(A,B,C) volatile A* B = (A*) C
+#define heapb(A,B)  heap(unsigned char,A,B)
+#define heaph(A,B)  heap(unsigned short,A,B)
+#define heapw(A,B)  heap(unsigned int,A,B)
 #define brk         asm("ebreak")
 
 // Работа с CSR, reg-номер регистра CSR, val-значение на запись

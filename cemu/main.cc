@@ -28,13 +28,7 @@ int main(int argc, char** argv)
         if (run) {
 
             // Шагомер по N-кадров x 50 = 25M инструкции
-            for (int i = 0; i < 500000; i++) {
-
-                step();
-
-                // Остановка исполнения
-                if (ebreak) { pc -= 4; break; }
-            }
+            int i = 0; while (i < 500000) { i += step(); if (ebreak) break; }
 
             // Остановка в развитии событии
             if (k == SDL_SCANCODE_F12) {

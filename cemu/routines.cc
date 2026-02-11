@@ -56,7 +56,7 @@ void init(int argc, char** argv)
     pc  = 0x00000000;
     mem = (Uint8*) calloc(MAX_MEM + 1, 1); // 1Mb
 
-    // Загрузить программу в память
+    // Загрузить программу в память (не более 1М)
     if (argc > 1) {
 
         FILE* f = fopen(argv[1], "rb");
@@ -221,14 +221,14 @@ void ecall() { }
 void mret()  { }
 // -----------------------
 
-void step()
+int step()
 {
     Uint32 i = readw(pc);
     Uint32 t = 0, a, b;
     Uint64 m1, m2, m3;
 
     // Undefined Instruction
-    int ud = 1;
+    int ud = 1, ts = 1;
 
     // Сбрасываем этот параметр снова
     ebreak = 0;
@@ -257,7 +257,7 @@ void step()
             WR(RD(i), pc + 4);
             pc += SIGN(IMMJ(i), 21);
             ud = 0;
-            return;
+            return 1;
         }
 
         // JALR Rd,Rs1,ImmI
@@ -266,13 +266,14 @@ void step()
             WR(RD(i), pc + 4);
             pc = RR(RS1(i)) + (SIGN(i >> 20, 12) & ~1);
             ud = 0;
-            return;
+            return 1;
         }
 
         // LOAD: Загрузка данных из памяти
         case 0x03: {
 
-            a = RR(RS1(i)) + SIGN(IMMI(i), 12);
+            a  = RR(RS1(i)) + SIGN(IMMI(i), 12);
+            ts = 2;
 
             switch (FN3(i)) {
 
@@ -289,7 +290,8 @@ void step()
         // STORE: Сохранение данных в память
         case 0x23: {
 
-            a = RR(RS1(i)) + SIGN(IMMS(i), 12);
+            a  = RR(RS1(i)) + SIGN(IMMS(i), 12);
+            ts = 2;
 
             switch (FN3(i)) {
 
@@ -318,7 +320,7 @@ void step()
             }
 
             // Выполнить переход, если совпало условие
-            if (t) { pc += SIGN(IMMB(i), 13); return; }
+            if (t) { pc += SIGN(IMMB(i), 13); return 1; }
 
             break;
         }
@@ -366,6 +368,8 @@ void step()
                     case 3: WR(RD(i), (Uint64)(a * b) >> 32); break; // MULHU
                     case 4: { // DIV
 
+                        ts = 8;
+
                         if (a == 0x80000000 && b == -1) {
                             t = a; // Переполнение
                         } else if (b == 0) {
@@ -377,8 +381,10 @@ void step()
                         WR(RD(i), t);
                         break;
                     }
-                    case 5: WR(RD(i), b ? a / b : -1); break; // DIVU
+                    case 5: ts = 8; WR(RD(i), b ? a / b : -1); break; // DIVU
                     case 6: { // REM: Знаковое
+
+                        ts = 8;
 
                         if (a == 0x80000000 && b == -1 || b == 0) {
                             t = 0;
@@ -390,7 +396,7 @@ void step()
                         break;
                     }
 
-                    case 7: WR(RD(i), b ? a % b : 0); break; // REMU
+                    case 7: ts = 8; WR(RD(i), b ? a % b : 0); break; // REMU
                 }
 
             } else {
@@ -423,9 +429,9 @@ void step()
 
                     if (RD(i) == 0 && RS1(i) == 0) {
 
-                        if      (a == 0x000) { ud = 0; ecall();    return; } // ECALL
-                        else if (a == 0x001) { ud = 0; ebreak = 1; break;  } // EBREAK
-                        else if (a == 0x302) { ud = 0; mret();     return; } // MRET
+                        if      (a == 0x000) { ud = 0; ecall();    return 1; } // ECALL
+                        else if (a == 0x001) { ud = 0; ebreak = 1; break; } // EBREAK
+                        else if (a == 0x302) { ud = 0; mret();     return 1; } // MRET
                     }
 
                     break;
@@ -444,6 +450,8 @@ void step()
     }
 
     pc += 4;
+
+    return ts;
 }
 
 // Перерисовать дамп
@@ -505,7 +513,9 @@ void updateDump()
 // Перерисовка всего экрана
 void updateScreen()
 {
-    switch (csr[0x7C0]) {
+    Uint32 t, n = csr[0x7C0];
+
+    switch (n) {
 
         // 80x25
         case 0:
@@ -516,7 +526,7 @@ void updateScreen()
             {
                 int x  = i % 80;
                 int y  = i / 80;
-                int a  = 0xB8000 + 2*i;
+                int a  = 0x100000 + 2*i;
                 int ch = mem[a];
                 int at = mem[a + 1];
 
@@ -538,17 +548,18 @@ void updateScreen()
 
             break;
 
-        // 320x200
+        // 320x200 [буфер A/B]
         case 2:
+        case 3:
+
+            t = n == 3 ? 0x110000 : 0x100000;
 
             for (int y = 0; y < 400; y++)
             for (int x = 0; x < 640; x++) {
-                pset(x, y, mem[0x100000 + (x >> 1) + (y >> 1)*320]);
+                pset(x, y, mem[t + (x >> 1) + (y >> 1)*320]);
             }
 
             break;
-
     }
-
 
 }
