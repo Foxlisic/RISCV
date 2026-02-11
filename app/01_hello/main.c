@@ -1,19 +1,12 @@
 #include <io.h>
+#include <common.h>
 
 void main()
 {
-    heaph(vm, 0x100000);
+    screen(3);
+    cls(0x17);
 
-    int i;
-    char *str = " Hello World! ";
-
-    // Очистить экран
-    for (i = 0; i < 2000; i++) vm[i] = 0x1700;
-
-    i = 80*12+32;
-    while (*str) {
-
-        vm[i++] = (*str | 0x3000);
-        str++;
-    }
+    locate(33,12);
+    color(0x30);
+    print(" Hello World! ");
 }

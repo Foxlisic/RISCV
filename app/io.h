@@ -1,5 +1,6 @@
 // Регистры CSR для управления периферией
 #define D_VIDEOMODE     0x7C0
+#define D_VIDEOADDR     0x00100000
 
 // Список видеорежимов
 enum VIDEOMODE

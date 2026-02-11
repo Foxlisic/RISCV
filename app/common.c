@@ -1,15 +1,35 @@
+
 // Включить режим экрана
 void screen(int i)
 {
-    if      (i ==  3) csr_write(0x7C0, VM_TEXT);
-    else if (i == 13) csr_write(0x7C0, VM_320);
-    else if (i == 12) csr_write(0x7C0, VM_640);
+    if (i ==  3) {
+        csr_write(0x7C0, VM_TEXT);
+    } else if (i == 13) {
+        csr_write(0x7C0, VM_320);
+    } else if (i == 12) {
+        csr_write(0x7C0, VM_640);
+    }
+}
+
+// Очистка экрана
+void cls(int c)
+{
+    heaph(vm, D_VIDEOADDR);
+
+    switch (csr_read(0x7C0)) {
+
+        case VM_TEXT:
+
+            for (int i = 0; i < 2000; i++) vm[i] = (c << 8);
+            cursor_a = c;
+            break;
+    }
 }
 
 // Установить точку на экране монитора
 void pset(int x, int y, uint8 c) {
 
-    heapb(vm, 0x100000);
+    heapb(vm, D_VIDEOADDR);
     if (x >= 0 && x < 320 && y >= 0 && y < 200) {
         vm[x + y*320] = c;
     }
@@ -51,4 +71,39 @@ void line(int x1, int y1, int x2, int y2, u8 c)
             error += deltax;
         }
     }
+}
+
+// Установка курсора, в том числе аппаратного, если есть
+void locate(int x, int y)
+{
+    cursor_x = x;
+    cursor_y = y;
+}
+
+// Установка текущего цвета
+void color(int c)
+{
+    cursor_a = c;
+}
+
+// Печать зависит от выбранного режима экрана
+void pchar(unsigned char c)
+{
+    heaph(vm, D_VIDEOADDR);
+
+    switch (csr_read(0x7C0)) {
+
+        case VM_TEXT:
+
+            vm[cursor_x + 80*cursor_y] = (cursor_a << 8) | c;
+            cursor_x++;
+            break;
+    }
+}
+
+// Печать строки
+void print(const char* s)
+{
+    int i = 0;
+    while (s[i]) { pchar(s[i++]); }
 }
