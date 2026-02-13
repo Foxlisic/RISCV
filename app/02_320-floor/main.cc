@@ -1,7 +1,7 @@
 #include <io.h>
 #include <common.h>
 
-void main()
+int main()
 {
     heapb(vm, 0x100000);
     screen(13);
@@ -22,4 +22,6 @@ void main()
 
         k++;
     }
+
+    return 0;
 }

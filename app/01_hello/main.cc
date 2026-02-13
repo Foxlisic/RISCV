@@ -6,10 +6,11 @@ int main()
     str(ib,8);
 
     screen(3);
-    cls(0x17);
-    locate(33,12); color(0x30); print(" Hello World! ");
-    input(ib,3);
-    locate(1,1); print(ib);
+    cls();
+
+    print(" Привет, мир! ",33,12,0x30);
+    input(ib,3,0,24,0x07);
+    print(ib, 1,1);
 
     return 0;
 }

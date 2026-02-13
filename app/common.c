@@ -18,6 +18,7 @@ void locate(int x, int y)
     cursor_x = x;
     cursor_y = y;
 
+    // Установить аппаратное положение курсора
     kk[0] = x + y*80;
 }
 
@@ -28,7 +29,7 @@ void color(int c)
 }
 
 // Очистка экрана
-void cls(int c)
+void cls(int c = 0x07)
 {
     heaph(vm, D_VIDEOADDR);
 
@@ -91,7 +92,6 @@ void line(int x1, int y1, int x2, int y2, u8 c)
     }
 }
 
-
 // Печать зависит от выбранного режима экрана
 void pchar(unsigned char c)
 {
@@ -108,10 +108,22 @@ void pchar(unsigned char c)
 }
 
 // Печать строки
-void print(const char* s)
+void print(const char* s, int x = -1, int y = -1, int c = -1)
 {
     int i = 0;
-    while (s[i]) { pchar(s[i++]); }
+
+    if (x >= 0) cursor_x = x;
+    if (y >= 0) cursor_y = y;
+    if (c >= 0) cursor_a = c;
+
+    while (s[i]) {
+
+        // UTF-8 => CP866
+        if      (s[i] == 0xD0) { i++; pchar(s[i++] - 0x10); }
+        else if (s[i] == 0xD1) { i++; pchar(s[i++] + 0x60); }
+        else { pchar(s[i++]); }
+    }
+
     locate(cursor_x, cursor_y);
 }
 
@@ -129,9 +141,16 @@ inline unsigned char kbcode()
     return kk[0];
 }
 
-int input(char* s, int max = 3)
+// Простой ввод строки с ограничителем
+int input(char* s, int max = 3, int x = -1, int y = -1, int c = -1)
 {
     int length = 0;
+
+    if (x >= 0) cursor_x = x;
+    if (y >= 0) cursor_y = y;
+    if (c >= 0) cursor_a = c;
+
+    locate(cursor_x, cursor_y);
 
     for (;;) {
 
@@ -142,12 +161,12 @@ int input(char* s, int max = 3)
             switch (ch) {
 
                 // ENTER
-                case 10:
-
+                case 10: {
                     return length;
+                }
 
                 // BACKSPACE
-                case 8:
+                case 8: {
 
                     if (length > 0) {
 
@@ -158,9 +177,10 @@ int input(char* s, int max = 3)
                     }
 
                     break;
+                }
 
                 // ДОБАВИМ СИМВОЛ
-                default:
+                default: {
 
                     if (length < max) {
 
@@ -172,8 +192,8 @@ int input(char* s, int max = 3)
                     }
 
                     break;
+                }
             }
         }
-
     }
 }
