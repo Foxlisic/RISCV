@@ -6,7 +6,7 @@
 Uint8* mem;
 Uint32 pc;
 Uint32 regs[32], pregs[32];
-Uint32 csr[4096];
+Uint32 csr[4096], mtime;
 
 #include "routines.cc"
 
@@ -32,7 +32,16 @@ int main(int argc, char** argv)
             else if (k < 0) { kb_ascii(-k, 0); }
 
             // Шагомер по N-кадров x 50 = 25M инструкции
-            int i = 0; while (i < 500000) { i += step(); if (ebreak) break; }
+            int i = 0;
+
+            // Необходимо для временных отсчетов времени (мяу)
+            mtime = SDL_GetTicks() & 0xFFFFFFFF;
+
+            while (i < 500000) {
+
+                i += step();
+                if (ebreak) break;
+            }
 
             // Остановка в развитии событии
             if (k == SDL_SCANCODE_F12) {
