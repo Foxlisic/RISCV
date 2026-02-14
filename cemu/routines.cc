@@ -19,11 +19,12 @@
 
 // Дебаггер
 char    ds[64];
-int     cp = 0;
+int     cp = 0, cs = 0;
 int     run = 0;
 int     wherei = 0;
 int     cursor = 0, cursor_t = 0;
 int     ebreak = 0;
+int     psize = 0;
 
 // Периферийные устройства
 int     kb_hit_ascii = 0, kb_key_ascii = 0;
@@ -63,7 +64,7 @@ void init(int argc, char** argv)
     if (argc > 1) {
 
         FILE* f = fopen(argv[1], "rb");
-        if (f) { fread(mem, 1, 1024*1024, f); fclose(f); }
+        if (f) { psize = fread(mem, 1, 1024*1024, f) >> 2; fclose(f); }
         else   { printf("PROGRAM NOT FOUND\n"); exit(1); }
     }
 
@@ -504,11 +505,6 @@ void updateDump()
     lineb (458,   8, 458, 290, 15);
     lineb (8,   290, 458, 290, 15);
 
-    // Коррекция вершины
-    if (pc < cp || pc > cp + 0x40) {
-        cp = pc;
-    }
-
     // дамп
     for (int i = 0; i <= 0x40; i += 4) {
 
@@ -516,7 +512,7 @@ void updateDump()
         int u = cp + i;
 
         // Курсор находится на точке PC
-        if (pc == u) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
+        if (u == cs) { linebf(9, 12+16*(i/4), 457, 12+16*(i/4)+15, 8); c = 15; }
 
         disasm(u);
         sprintf(ub, "%08X%c%08X  %s", u, (pc == u ? 0x10 : ' '), readw(u), ds);

@@ -2,11 +2,22 @@
 void screen(int i)
 {
     if (i ==  3) {
+
         csr_write(0x7C0, VM_TEXT);
+        screen_w = 80;
+        screen_w = 25;
+
     } else if (i == 13) {
+
         csr_write(0x7C0, VM_320);
+        screen_w = 320;
+        screen_h = 200;
+
     } else if (i == 12) {
+
         csr_write(0x7C0, VM_640);
+        screen_w = 640;
+        screen_h = 400;
     }
 }
 
@@ -49,8 +60,9 @@ void cls(int c = 0x07)
 void pset(int x, int y, uint8 c) {
 
     heapb(vm, D_VIDEOADDR);
-    if (x >= 0 && x < 320 && y >= 0 && y < 200) {
-        vm[x + y*320] = c;
+
+    if (x >= 0 && x < screen_w && y >= 0 && y < screen_h) {
+        vm[x + y*screen_w] = c;
     }
 }
 

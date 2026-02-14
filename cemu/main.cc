@@ -75,8 +75,47 @@ int main(int argc, char** argv)
                     run = 1;
                     break;
 
+                // Навигация
+                case SDL_SCANCODE_PAGEUP:
+
+                    cs -= 0x40;
+                    if (cs < 0) cs = 0;
+                    cp = cs;
+                    updateDump();
+                    break;
+
+                case SDL_SCANCODE_PAGEDOWN:
+
+                    cs += 0x40;
+                    cp  = cs;
+                    updateDump();
+                    break;
+
+                // Кнопочка ВВЕРХ!
+                case SDL_SCANCODE_UP:
+
+                    if (cs >= 4) cs -= 4;
+                    if (cs < cp) cp = cs;
+                    updateDump();
+                    break;
+
+                // Нажимаем кнопочку вниз
+                case SDL_SCANCODE_DOWN:
+
+                    cs += 4;
+                    if (cs > cp + 0x40) cp = cs;
+                    updateDump();
+                    break;
+
                 // Один шаг дампа
-                case SDL_SCANCODE_F7: step(); updateDump(); break;
+                case SDL_SCANCODE_F7:
+
+                    step();
+
+                    cs = pc;
+                    if (cs > cp + 0x40 || pc < cp) cp = cs;
+                    updateDump();
+                    break;
             }
         }
     }
