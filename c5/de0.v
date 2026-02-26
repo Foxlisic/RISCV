@@ -90,5 +90,60 @@ pll u0
     .m25        (clock_25),
     .m100       (clock_100)
 );
+// -----------------------------------------------------------------------------
+wire   [3:0]    key = KEY;
+wire            clock = clock_100;
+// -----------------------------------------------------------------------------
+
+`define CP3 cp[2:0]
+
+// @TODO assign dp   = beep & divclk[16];
+assign LEDR = disp ^ (phi == 4'h2 && divclk[23] ? (1 << `CP3) : 0);
+
+// =============================================================================
+// MNODULE
+// =============================================================================
+
+reg [23:0]  divclk; // ~95.3 Hz
+reg [ 2:0]  phi;
+reg [ 7:0]  cp;
+reg [ 7:0]  disp;
+reg         beep;
+// -----------------------------------------------------------------------------
+always @(posedge clock) divclk <= divclk + 1;
+// -----------------------------------------------------------------------------
+
+always @(posedge divclk[19])
+begin
+
+    case (phi)
+
+    // IDLE: Ждать пока на кнопку нажмется
+    0: phi <= &key ? 0 : 1;
+
+    // ENTER DATA
+    1: begin beep <= 0; phi <= &key ? 2 : 1; end
+    2: if      (!key[0]) begin phi <= 1; `CP3 <= `CP3 + 1; disp[`CP3] <= 1'b0; end
+       else if (!key[1]) begin phi <= 1; `CP3 <= `CP3 + 1; disp[`CP3] <= 1'b1; end
+       else if (!key[2]) begin phi <= 1; `CP3 <= `CP3 - 1; end
+       else if (!key[3]) begin phi <= 3; end
+
+    // DOWNTIMER
+    3: begin
+
+        if (&cp) begin
+
+            disp <= disp - 1;
+            if (disp == 1) begin beep <= 1; phi <= 0; end
+
+        end
+
+        cp <= cp + 1;
+
+    end
+
+    endcase
+
+end
 
 endmodule

@@ -63,52 +63,58 @@ int main(int argc, char** argv)
             switch (k) {
 
                 // Посмотреть что на экране сейчас в данный момент
-                case SDL_SCANCODE_F4:
+                case SDL_SCANCODE_F4: {
 
                     wherei = 1 - wherei;
                     if (wherei) updateScreen(); else updateDump();
                     break;
+                }	
 
                 // Запуск программы
-                case SDL_SCANCODE_F9:
+                case SDL_SCANCODE_F9: {
 
                     run = 1;
                     break;
+                }
 
                 // Навигация
-                case SDL_SCANCODE_PAGEUP:
+                case SDL_SCANCODE_PAGEUP: {
 
                     cs -= 0x40;
                     if (cs < 0) cs = 0;
                     cp = cs;
                     updateDump();
                     break;
+                }
 
-                case SDL_SCANCODE_PAGEDOWN:
+                case SDL_SCANCODE_PAGEDOWN: {
 
                     cs += 0x40;
                     cp  = cs;
                     updateDump();
                     break;
+                }
 
                 // Кнопочка ВВЕРХ!
-                case SDL_SCANCODE_UP:
+                case SDL_SCANCODE_UP: {
 
                     if (cs >= 4) cs -= 4;
                     if (cs < cp) cp = cs;
                     updateDump();
                     break;
+                }
 
                 // Нажимаем кнопочку вниз
-                case SDL_SCANCODE_DOWN:
+                case SDL_SCANCODE_DOWN: {
 
                     cs += 4;
                     if (cs > cp + 0x40) cp = cs;
                     updateDump();
                     break;
+                }
 
                 // Один шаг дампа
-                case SDL_SCANCODE_F7:
+                case SDL_SCANCODE_F7: {
 
                     step();
 
@@ -116,6 +122,7 @@ int main(int argc, char** argv)
                     if (cs > cp + 0x40 || pc < cp) cp = cs;
                     updateDump();
                     break;
+                }
             }
         }
     }

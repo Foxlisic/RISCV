@@ -53,6 +53,12 @@ void cls(int c = 0x07)
             locate(0, 0);
             color(c);
             break;
+
+        case VM_320:
+        case VM_640:
+
+            for (int i = 0; i < 64000; i++) vm[i] = c + (c << 8);
+            break;
     }
 }
 

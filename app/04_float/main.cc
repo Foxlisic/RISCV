@@ -3,9 +3,19 @@
 
 int main()
 {
-    screen(3);
+    screen(13);
     cls(7);
-    locate(2,1);
-    print("Hello World по фудкорту фастфуду!");
+
+    float a = 0.5;
+
+    // Тест флоата
+    for (int x = 0; x < 320; x++) {
+
+        pset(x, 100 - (int) a, 0);
+
+        brk;
+        a += 0.4;
+    }
+
     return 0;
 }

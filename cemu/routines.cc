@@ -303,7 +303,7 @@ int step()
         case 0x67: {
 
             WR(RD(i), pc + 4);
-            pc = RR(RS1(i)) + (SIGN(i >> 20, 12) & ~1);
+            pc = RR(RS1(i)) + (SIGN(IMMI(i), 12) & ~1);
             ud = 0;
             return 1;
         }
