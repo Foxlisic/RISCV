@@ -397,7 +397,7 @@ int step()
             ud = 0;
 
             // Расширение M
-            if (FN7(i) == 0x001) {
+            if (FN7(i) == 0x01) {
 
                 switch (FN3(i)) {
 
@@ -405,6 +405,7 @@ int step()
                     case 1: WR(RD(i), (Uint64)(SIGN32(a) * SIGN32(b)) >> 32); break; // MULH
                     case 2: WR(RD(i), (Uint64)(SIGN32(a) * b) >> 32); break; // MULHSU
                     case 3: WR(RD(i), (Uint64)(a * b) >> 32); break; // MULHU
+                    // ----
                     case 4: { // DIV
 
                         ts = 8;

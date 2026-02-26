@@ -12,21 +12,21 @@ initial begin #4.0 rst_n = 1; #200 $finish; end
 initial begin $dumpfile("tb.vcd"); $dumpvars(0, tb); end
 initial begin $readmemh("tb.hex", M, 1'b0); end
 // ---------------------------------------------------
-wire [31:0] A;  // Адрес (Address)
-wire [31:0] I = {M[A+3], M[A+2], M[A+1], M[A]};
-wire [31:0] O;  // Данные в память (Out)
-wire        W;  // Сигнал записи (Write)
-wire [ 1:0] WS; // Сколько записывать
+wire [31:0] a;  // Адрес (Address)
+wire [31:0] o;  // Данные в память (Out)
+wire        w;  // Сигнал записи (Write)
+wire [ 1:0] ws; // Сколько записывать
+wire [31:0] i = {M[a+3], M[a+2], M[a+1], M[a]};
 // ---------------------------------------------------
-always @(posedge clock_100)
+always @(negedge clock_100)
 begin
 
     // Запись в память 1,2,4 байта
-    if (W)
-    case (WS)
-    2'b00: {M[A]} <= O[7:0];
-    2'b01: {M[A+1], M[A]} <= O[15:0];
-    2'b10: {M[A+3], M[A+2], M[A+1], M[A]} <= O;
+    if (w)
+    case (ws)
+    2'b00: {M[a]} <= o[7:0];
+    2'b01: {M[a+1], M[a]} <= o[15:0];
+    2'b10: {M[a+3], M[a+2], M[a+1], M[a]} <= o;
     endcase
 
 end
@@ -36,10 +36,10 @@ core C1
     .clock      (clock_25),
     .rst_n      (rst_n),
     .ce         (1'b1),
-    .a          (A),
-    .i          (I),
-    .o          (O),
-    .w          (W),
-    .ws         (WS)
+    .a          (a),
+    .i          (i),
+    .o          (o),
+    .w          (w),
+    .ws         (ws)
 );
 endmodule

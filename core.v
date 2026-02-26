@@ -53,7 +53,7 @@ wire [31:0] op2     = (opcode == 7'h13) ? immis : r2;
 wire [32:0] sub     = r1 - op2;
 
 // Получение 1 если r1 < op2 со знаком (OF != SF)
-wire        slt     = ((r1[31] ^ op2[31]) & (r1[31] ^ sub[31])) ^ sub[31]; 
+wire        slt     = ((r1[31] ^ op2[31]) & (r1[31] ^ sub[31])) ^ sub[31];
 
 // Знаковое расширение для SRA
 // Количество сдвигов разное для I/R-операнде
@@ -62,6 +62,10 @@ wire [ 4:0] sha     = (opcode == 7'h13) ? rs2 : r2[4:0];
 
 // Для R-АЛУ операции выбирается SUB если FN7 не равен 0, иначе везде ADD
 wire [31:0] addsub  = (opcode == 7'h33 && fn7) ? sub[31:0] : r1 + op2;
+// -----------------------------------------------------------------------------
+wire [63:0] s1  = {{32{r1[31]}}, r1}; // SIGN(r1)
+wire [63:0] s2  = {{32{r2[31]}}, r2}; // SIGN(r2)
+wire [63:0] mul = (fn3==1 || fn3 == 2 ? s1 : r1) * (fn3 == 2 ? s2 : r2);
 // -----------------------------------------------------------------------------
 wire [31:0] alu =
     fn3 == ADD  ? addsub     : // 0 ADDI или ADD, SUB
@@ -148,10 +152,19 @@ end else if (ce) begin
 
     endcase
 
-    // [ALU] Immediate | Register
-    7'h13,
-    7'h33: begin rw <= 1; x <= alu; end
-    
+    // [ALU] Immediate
+    7'h13: begin rw <= 1; x <= alu; end
+
+    // [ALU] Register
+    7'h33: if (fn7 == 7'h01) case (fn3)
+
+        0:     begin rw <= 1; x <= mul[31:0];  end // MUL
+        1,2,3: begin rw <= 1; x <= mul[63:32]; end // MULH, MULHSU, MULHU
+
+    endcase
+    // Стандартные операнды
+    else begin rw <= 1; x <= alu; end
+
     endcase
 
 end
