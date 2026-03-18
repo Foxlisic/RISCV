@@ -1,7 +1,7 @@
 #include <io.h>
+#include <common.h>
 
 int main()
 {
-    heaph(vm, 0x100000);
     return 0;
 }

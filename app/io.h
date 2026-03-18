@@ -2,14 +2,6 @@
 #define D_VIDEOMODE     0x7C0
 #define D_VIDEOADDR     0x00100000
 
-// Список видеорежимов
-enum VIDEOMODE
-{
-    VM_TEXT = 0,
-    VM_640  = 1,
-    VM_320  = 2,
-};
-
 #define uint    unsigned int
 #define u16     unsigned short
 #define u8      unsigned char

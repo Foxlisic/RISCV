@@ -1,5 +1,5 @@
 RC=riscv64-unknown-elf
-LB=-nostartfiles -nostdlib -nodefaultlibs -ffunction-sections
+LB=-nostartfiles -nostdlib -nodefaultlibs -ffunction-sections  -ffreestanding
 
 all: comp dump run
 comp:
@@ -9,3 +9,5 @@ dump:
 	$(RC)-objdump -S main.elf > dump.lst
 run:
 	../../cemu/main main.bin
+clean:
+	rm -f main.elf main.map main.bin dump.lst

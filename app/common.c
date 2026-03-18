@@ -3,19 +3,25 @@ void screen(int i)
 {
     if (i ==  3) {
 
-        csr_write(0x7C0, VM_TEXT);
+        csr_write(0x7C0, 0);
         screen_w = 80;
         screen_w = 25;
 
     } else if (i == 13) {
 
-        csr_write(0x7C0, VM_320);
+        csr_write(0x7C0, 2);
         screen_w = 320;
         screen_h = 200;
 
     } else if (i == 12) {
 
-        csr_write(0x7C0, VM_640);
+        csr_write(0x7C0, 4);
+        screen_w = 640;
+        screen_h = 400;
+
+    } else if (i == 14) {
+
+        csr_write(0x7C0, 2);
         screen_w = 640;
         screen_h = 400;
     }
@@ -43,10 +49,11 @@ void color(int c)
 void cls(int c = 0x07)
 {
     heaph(vm, D_VIDEOADDR);
+    heapb(vb, D_VIDEOADDR);
 
     switch (csr_read(0x7C0)) {
 
-        case VM_TEXT:
+        case 0:
 
             for (int i = 0; i < 2000; i++) vm[i] = (c << 8);
 
@@ -54,10 +61,15 @@ void cls(int c = 0x07)
             color(c);
             break;
 
-        case VM_320:
-        case VM_640:
+        case 1:
+        case 2:
 
             for (int i = 0; i < 64000; i++) vm[i] = c + (c << 8);
+            break;
+
+        case 4:
+
+            for (int i = 0; i < 32000; i++) vb[i] = c + (c << 4);
             break;
     }
 }
@@ -117,7 +129,7 @@ void pchar(unsigned char c)
 
     switch (csr_read(0x7C0)) {
 
-        case VM_TEXT:
+        case 0:
 
             vm[cursor_x + 80*cursor_y] = (cursor_a << 8) | c;
             cursor_x++;

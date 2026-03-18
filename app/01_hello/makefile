@@ -1,5 +1,5 @@
 RC=riscv64-unknown-elf
-LB=-nostartfiles -nostdlib -nodefaultlibs -ffunction-sections
+LB=-nostartfiles -nostdlib -nodefaultlibs -ffunction-sections -ffreestanding
 
 all: comp dump run
 comp:

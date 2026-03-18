@@ -424,7 +424,7 @@ int step()
                     case 5: ts = 8; WR(RD(i), b ? a / b : -1); break; // DIVU
                     case 6: { // REM: Знаковое
 
-                        ts = 8;
+                        ts = 9;
 
                         if (a == 0x80000000 && b == -1 || b == 0) {
                             t = 0;
@@ -578,7 +578,7 @@ void updateScreen()
 
             for (int y = 0; y < 400; y++)
             for (int x = 0; x < 640; x++) {
-                pset(x, y, mem[0x100000 + x + y*640] & 15);
+                pset(x, y, mem[0x100000 + x + y*640]);
             }
 
             break;
@@ -595,5 +595,20 @@ void updateScreen()
             }
 
             break;
+
+        // 640x400x4 bit
+        case 4: {
+
+            for (int y = 0; y < 400; y++)
+            for (int x = 0; x < 640; x+=2) {
+
+                t = mem[0x100000 + (x >> 1) + y*320];
+
+                pset(x,   y, t >> 4);
+                pset(x+1, y, t & 15);
+            }
+
+            break;
+        }
     }
 }
