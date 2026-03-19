@@ -7,7 +7,7 @@ module core
     output reg  [31:0]  a,
     input       [31:0]  i,
     output reg  [31:0]  o,
-    output reg  [ 1:0]  s,      // 0=1b, 1=2b, 3=4b
+    output reg  [ 3:0]  b,
     output reg          w
 );
 
@@ -20,7 +20,7 @@ reg  [31:0] pcn, cpn;   // Следующий адрес в памяти
 reg  [31:0] on;         // Следующий out_data
 reg  [31:0] r[32];      // 32bit x 32 регистра
 reg  [ 1:0] t, tn;      // Стадия исполнения
-reg  [ 1:0] sn;         // Размер для записи
+reg  [ 3:0] bn;         // Размер для записи
 reg         rw;         // =1 Писать в регистр Rd
 reg  [31:0] x;          // Что именно писать в Rd
 reg  [31:0] opcache;    // Сохранить кеш инструкции
@@ -42,8 +42,8 @@ wire [31:0] immb    = pc + {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8]
 // ---
 wire [31:0] r1      = rs1 ? r[rs1] : 32'b0;
 wire [31:0] r2      = rs2 ? r[rs2] : 32'b0;
-wire [31:0] ap      = r1 + imms;            // Адрес Load/Store
-wire [31:0] jp      = r1 + immi;            // JALR
+wire [31:0] jp      = r1 + immi;            // LOAD, JALR
+wire [31:0] ap      = r1 + imms;            // STORE
 wire [31:0] pc4     = pc + 4;
 // ---
 wire        is13    = opcode == 7'h13;      // АЛУ с immediate
@@ -80,10 +80,17 @@ always @(*) begin
     wn  = 1'b0;
     on  = 1'b0;
     tn  = 1'b0;
-    sn  = 1'b0;
     rw  = 1'b0;
-    pcn = pc4;
+    pcn = t ? pc : pc4;
     cpn = ap;
+
+    // Для записи в память
+    case (fn3[1:0])
+    2'b00: begin bn = ~(4'b0001 << ap[1:0]); end
+    2'b01: begin bn = ~(4'b0011 << ap[1:0]); end
+    2'b10: begin bn = ~(4'b1111 << ap[1:0]); end
+    2'b11: begin bn = 4'b0000; end
+    endcase
 
     case (opcode)
 
@@ -113,10 +120,30 @@ always @(*) begin
     // AUIPC Rd, Imm20
     7'h17: begin rw = 1; x = immu + pc; end
 
-    // STORE Rd,Rs1,ImmI [2T]
+    // STORE Rd,Rs1,ImmI [2*T]
     7'h23: case (t)
 
-        0: begin {m, wn} = 2'b11; tn = 1; on = r2; sn = fn3[1:0]; end
+        0: begin {m, wn} = 2'b11; tn = 1; on = r2 << {ap[1:0], 3'b000}; end
+        1: begin
+
+            // Следующее 32х битное слово
+            cpn = (ap + 4);
+
+            // Подготовка данных для записи
+            case (ap[1:0])
+            2'b01: begin bn = 4'b1110; on = r2[31:24]; end
+            2'b10: begin bn = 4'b1100; on = r2[31:16]; end
+            2'b11: begin bn = 4'b1000; on = r2[31:8];  end
+            endcase
+
+            case (fn3[1:0])
+            // 2 байта: на границе слова
+            2'b01: if (ap[1:0] == 2'b11) begin {m, wn} = 2'b11; tn = 2; bn = 4'b1110; end
+            // 4 байта: невыровненные
+            2'b10: if (ap[1:0] != 2'b00) begin {m, wn} = 2'b11; tn = 2; end
+            endcase
+
+        end
 
     endcase
 
@@ -151,12 +178,12 @@ end
 always @(posedge clock)
 if (rst_n == 1'b0) begin
 
-    a  <= 0;    // Старт с 0x00000000
-    s  <= 0;
-    o  <= 0;
-    w  <= 0;
-    pc <= 0;
     t  <= 0;
+    a  <= 0;                // Старт с 0x00000000
+    pc <= 0;
+    b  <= 4'b0;
+    o  <= 32'b0;
+    w  <= 1'b0;
 
 end else if (ce) begin
 
@@ -165,7 +192,7 @@ end else if (ce) begin
     a  <= m ? cpn : pcn;    // Новый PC или указатель
     w  <= wn;
     o  <= on;
-    s  <= sn;
+    b  <= bn;
 
     if (!t) opcache <= instr;
     if (rw) r[rd] <= x;

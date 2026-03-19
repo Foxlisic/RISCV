@@ -1,13 +1,14 @@
 .section .text
 .global _start
 _start:
-        li      x1, 0x0000DEDA
-        li      x2, 0xDEDABEEF
+        li      x1, 0x1122DEDA
+        li      x2, 0x8040BEEF
         la      x3, _s1
 # -------------------------------------
-        lw      x2, 0(x3)
+        sb      x2, 1(x3)
 # -------------------------------------
-        sra     x1, x2, 2
+        li      x4, 0x55302211
+        sra     x1, x4, 1
         addi    x1, x0, -3
         addi    x2, x1, -24
         sub     x4, x2, x3

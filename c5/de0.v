@@ -67,15 +67,10 @@ assign DRAM_DQ = 16'hzzzz;
 assign GPIO_0  = 36'hzzzzzzzz;
 assign GPIO_1  = 36'hzzzzzzzz;
 
-// LED OFF
-assign HEX0 = 7'b1111111;
-assign HEX1 = 7'b1111111;
-assign HEX2 = 7'b1111111;
-assign HEX3 = 7'b1111111;
-assign HEX4 = 7'b1111111;
-assign HEX5 = 7'b1111111;
-
 assign SD_DATA[0] = 1'bZ;
+
+// Активировано, 50% duty
+ledpanel(CLOCK_50, 1'b1, 16'h0200, out, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5);
 
 // Провода
 // ---------------------------------------------------------------------
@@ -92,6 +87,110 @@ pll u0
 );
 
 // Эксперименты с памятью
-m256 M1( .c(c25) );
+m256 M1( .c(~c25), .a(a), .b(b), .d(d), .q(q), .w(w) );
+// ----
+
+reg [ 3:0]  t;
+reg [15:0]  a;
+reg [ 3:0]  b;
+reg [31:0]  d;
+reg         w;
+wire [31:0] q;
+// ---
+reg [23:0]  out;
+
+always @(posedge c25)
+if (reset_n) begin
+
+    case (t)
+    0: begin t <= 1; w <= 1; d <= 32'hCAFEBABE; b <= 4'b0000; a <= 16'hDEDA; end
+    1: begin t <= 2; w <= 0; end
+    2: begin t <= 3; w <= 1; d <= 32'h11223344; b <= 4'b1100; end
+    3: begin t <= 4; w <= 0; out <= q; end
+    endcase
+
+end
+
+endmodule
+
+
+module ledpanel
+(
+    // ------------------------------
+    input  wire        clock50,     // Тактовая частота
+    input  wire        ena,         // Активация устройства
+    input  wire [15:0] duty,        // Яркость от 0 до 65535
+    input  wire [23:0] hexcode,     // Входные данные
+    // ------------------------------
+    output wire [6:0]  hex0,
+    output wire [6:0]  hex1,
+    output wire [6:0]  hex2,
+    output wire [6:0]  hex3,
+    output wire [6:0]  hex4,
+    output wire [6:0]  hex5
+);
+
+// Выдача изображения
+assign hex5 = get_led_state(hexcode[23:20], pwm & ena & hl[5]);
+assign hex4 = get_led_state(hexcode[19:16], pwm & ena & hl[4]);
+assign hex3 = get_led_state(hexcode[15:12], pwm & ena & hl[3]);
+assign hex2 = get_led_state(hexcode[ 11:8], pwm & ena & hl[2]);
+assign hex1 = get_led_state(hexcode[  7:4], pwm & ena & hl[1]);
+assign hex0 = get_led_state(hexcode[  3:0], pwm & ena & hl[0]);
+
+reg [ 5:0] hl;
+reg [15:0] counter;
+reg        pwm;
+
+// ~ 750 Hz
+always @(posedge clock50) begin
+
+    counter <= counter + 1;
+    pwm     <= counter < duty;
+
+    casex (hexcode)
+
+        24'h00000x: hl <= 6'b000001;
+        24'h0000xx: hl <= 6'b000011;
+        24'h000xxx: hl <= 6'b000111;
+        24'h00xxxx: hl <= 6'b001111;
+        24'h0xxxxx: hl <= 6'b011111;
+        default:    hl <= 6'b111111;
+
+    endcase
+
+end
+
+// Функция получения Led State
+function [6:0] get_led_state;
+input [3:0] hc;
+input enpin;
+begin
+
+    if (enpin)
+    case (hc)
+
+        4'h0: get_led_state = 7'b1000000;
+        4'h1: get_led_state = 7'b1111001;
+        4'h2: get_led_state = 7'b0100100;
+        4'h3: get_led_state = 7'b0110000;
+        4'h4: get_led_state = 7'b0011001;
+        4'h5: get_led_state = 7'b0010010;
+        4'h6: get_led_state = 7'b0000010;
+        4'h7: get_led_state = 7'b1111000;
+        4'h8: get_led_state = 7'b0000000;
+        4'h9: get_led_state = 7'b0010000;
+        4'hA: get_led_state = 7'b0001000;
+        4'hB: get_led_state = 7'b0000011;
+        4'hC: get_led_state = 7'b1000110;
+        4'hD: get_led_state = 7'b0100001;
+        4'hE: get_led_state = 7'b0000110;
+        4'hF: get_led_state = 7'b0001110;
+
+	endcase
+    else get_led_state = 7'b1111111;
+
+end
+endfunction
 
 endmodule

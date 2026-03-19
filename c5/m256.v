@@ -2,7 +2,7 @@
 `timescale 1 ps / 1 ps
 // synopsys translate_on
 // ---------------------
-module mem(c, /*PORT1*/ a,d,q,w,b, /*PORT-2*/ cx,ax,dx,qx,wx,bx);
+module m256(c, /*PORT1*/ a,d,q,w,b, /*PORT-2*/ cx,ax,dx,qx,wx,bx);
 input           c, cx;
 input    [ 3:0] b, bx;
 input    [15:0] a, ax;
@@ -28,18 +28,18 @@ altsyncram altsyncram_component
     .wren_a           (w),
     .q_a              (q),
 // -- Порт-2 --
-    .clock1           (cx),
+    // .clock1           (cx),
     .address_b        (ax),
     .data_b           (dx),
     .wren_b           (wx),
     .q_b              (qx),
 // -- Настойки --
-    .aclr0            (1'b0), // Чистка кармы выходного регистра A/B асинхронно
+    .aclr0            (1'b0),   // Чистка кармы выходного регистра A/B асинхронно
     .aclr1            (1'b0),
-    .addressstall_a   (1'b0), // Не защелкивать адресный входящий регистр A
+    .addressstall_a   (1'b0),   // Не защелкивать адресный входящий регистр A
     .addressstall_b   (1'b0),
-    .byteena_a        (4'b1111^b), // Маска активации записи байта из data-входа
-    .byteena_b        (4'b1111^bx),
+    .byteena_a        (~b),     // Маска активации записи байта из data-входа
+    .byteena_b        (4'b1111),
     .clocken0         (1'b1),
     .clocken1         (1'b1),
     .clocken2         (1'b1),
