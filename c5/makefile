@@ -1,4 +1,6 @@
 all: syn
+rom:
+	php romer.php hi tests/city.png
 pgm:
 	quartus_pgm -m jtag -o "p;output_files/de0.sof"
 syn:

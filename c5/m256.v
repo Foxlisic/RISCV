@@ -49,7 +49,7 @@ altsyncram altsyncram_component
     .rden_b           (1'b1)
 );
 defparam
-    altsyncram_component.init_file                  = "mem.mif",
+    altsyncram_component.init_file                  = "m256.mif",
 // --
     altsyncram_component.address_reg_b              = "CLOCK0",
     altsyncram_component.indata_reg_b               = "CLOCK0",

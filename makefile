@@ -1,5 +1,5 @@
 
-all: asm ica # cem
+all: asm ica #cem
 ica:
 	iverilog -g2005-sv -DICARUS=1 -o main.qqq tb.v core.v
 	vvp main.qqq > /dev/null
@@ -9,7 +9,6 @@ asm:
 	riscv64-unknown-elf-objcopy -O binary test.elf test.bin
 	riscv64-unknown-elf-objdump -S test.elf > test.lst
 	hexdump -v -e '1/4 "%08x\n"' test.bin > tb.hex
-	#hexdump -v -e '1/1 "%02x\n"' test.bin > tb.hex
 	rm test.o test.elf
 cem:
 	./cemu/main test.bin
