@@ -23,6 +23,8 @@
 #define csr_clr(reg, mask)  asm volatile ("csrrc " #reg ", %0" : : "rK" (mask))
 
 // Положение мыши (и Больцмана)
+inline int kbread() { heapw(tmp, 0xC0000000); return tmp[0]; }
+inline int kbhit()  { heapw(tmp, 0xC0000010); return tmp[0]; } // =1 было нажатие и получение ASCII-кода
 inline int mousex() { heapw(tmp, 0xC0000020); return tmp[0]; }
 inline int mousey() { heapw(tmp, 0xC0000030); return tmp[0]; }
 inline int mouseb() { heapw(tmp, 0xC0000040); return tmp[0]; }

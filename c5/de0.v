@@ -38,7 +38,7 @@ module de0
       input       [3:0]  KEY,
 
       // LED
-      output      [9:0]  LEDR,
+      output reg  [9:0]  LEDR,
 
       // PS/2
       inout              PS2_CLK,
@@ -91,7 +91,7 @@ wire [31:0] a; // Адресок дайте?
 wire [ 3:0] b; // Маска
 wire [31:0] d; // Данные на запись
 wire [31:0] q; // На чтение
-wire        w; // Сигнал записи
+wire        w, read; // Сигнал записи или чтения
 
 core C1
 (
@@ -102,7 +102,8 @@ core C1
     .b          (b),
     .i          (i),
     .o          (d),
-    .w          (w)
+    .w          (w),
+    .read       (read),
 );
 
 // Блоки памяти
@@ -117,9 +118,11 @@ wire w256 = a < 32'h40000;
 // Роутер памяти
 wire [31:0] i =
     w256 ? q :
-    a[31:4] == 28'hC000002 ? x   : // MouseX
-    a[31:4] == 28'hC000003 ? y   : // MouseY
-    a[31:4] == 28'hC000004 ? btn : // Button
+    a[31:4] == 28'hC000000 ? kb_ascii   :   // Keyb
+    a[31:4] == 28'hC000001 ? kb_pending :   // Hit
+    a[31:4] == 28'hC000002 ? x   :          // MouseX
+    a[31:4] == 28'hC000003 ? y   :          // MouseY
+    a[31:4] == 28'hC000004 ? btn :          // Button
     32'b0;
 
 // FMax ~ 43 Mhz при таком подходе с негативным спадом clock-100
@@ -140,20 +143,41 @@ vga32 D1
     .i      (vq),
 );
 
-// Контроллер мыши
+// Контроллер клавиатуры или мыши
 // -----------------------------------------------------------------------------
 
-wire        ms_cmd;
-wire [7:0]  ms_dat;
-wire [7:0]  ms_kbd;
+wire        ms_cmd, kb_cmd;
+wire [7:0]  ms_dat, kb_dat;
+wire [7:0]  ms_kbd, kb_kbd, ascii;
 wire        ms_hit, ms_err, ms_ready;
+wire        kb_hit, kb_err, kb_ready, kb_done;
 
 // Результаты чтения информации о мыши
 wire [11:0] x, y;
 wire [ 2:0] btn;
 wire        recv;
+reg  [ 7:0] kb_ascii;
+reg         kb_pending;
 
+// Клавиатура
 kb K1A
+(
+    .clock  (c25),        // 25 Mhz
+    .reset_n(reset_n),    // =0 Сброс
+    .ps_clk (PS2_CLK),    // PS/2 Clock
+    .ps_dat (PS2_DAT),    // PS/2 Data
+    .cmd    (kb_cmd),     // =1 Сигнал на отсылку команды
+    .dat    (kb_dat),     // Код команды или данных
+    .hit    (kb_hit),     // =1 Данные приняты (только 1 такт)
+    .kbd    (kb_kbd),     // -> Принятые данные от клавиатуры
+    .kdone  (kb_done),    // =1 Данные приняты (ASCII)
+    .ascii  (ascii),
+    .err    (kb_err),     // =1 Есть ошибка приема/передачи
+    .ready  (kb_ready)    // =1 Готовность к приему команд
+);
+
+// Мышь
+kb K2A
 (
     .clock  (c25),   // 25 Mhz
     .reset_n(reset_n),    // =0 Сброс
@@ -184,6 +208,16 @@ mouse K1B
     .btn     (btn),
     .recv    (recv)
 );
+
+always @(posedge c25) begin
+
+    // При чтении сбрасывать KB PENDING (на следующем такте)
+    if (a[31:4] == 28'hC000001 && read) kb_pending <= 0;
+
+    // Пришли данные
+    if (kb_done) begin kb_ascii <= ascii; kb_pending <= 1; end
+
+end
 
 endmodule
 
