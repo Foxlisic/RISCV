@@ -13,8 +13,7 @@ int main()
 
         pset(x, 100 - (int) a, 0);
 
-        brk;
-        a += 0.4;
+        a += 0.2;
     }
 
     return 0;

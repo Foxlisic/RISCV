@@ -8,14 +8,15 @@ module core
     input       [31:0]  i,
     output reg  [31:0]  o,
     output reg  [ 3:0]  b,
-    output reg          w
+    output reg          w,
+    output reg          read
 );
 // -----------------------------------------------------------------------------
 localparam ADD = 0, SLL = 1, SLT = 2, SLTU = 3, XOR = 4, SRL = 5, OR = 6, AND = 7;
 // -----------------------------------------------------------------------------
 reg  [31:0] r[32];          // 32bit x 32 регистра
 reg         m;              // Выбор источника памяти
-reg         wn;             // =1 Установка записи в память
+reg         wn, rn;         // =1 Установка записи/чтения в память
 reg         rw;             // =1 Писать в регистр Rd
 reg  [31:0] on;             // Данные для записи в память
 reg  [ 3:0] bn;             // Маска для записи STORE
@@ -82,6 +83,7 @@ always @(*) begin
 
     m   = 1'b0;
     wn  = 1'b0;
+    rn  = 1'b0;
     tn  = 1'b0;
     rw  = 1'b0;
     cpn = 1'b0;
@@ -105,7 +107,7 @@ always @(*) begin
     // LOAD Rd,Rs1,ImmI [2T]
     7'h03: case (t)
 
-        0: begin tn = 1; m = 1; cpn = jp; end
+        0: begin tn = 1; m = 1; cpn = jp; rn = 1; end
         1: begin
 
             // 1) +0 WORD Выровненное чтение по границам 32х битного слова: WORD
@@ -126,7 +128,7 @@ always @(*) begin
 
             end else
             // Выборка памяти, к следующему WORD и сохранить часть слова
-            begin tn = 2; m = 1; cpn = jp + 4; on = y; end
+            begin tn = 2; m = 1; cpn = jp + 4; on = y; rn = 1; end
 
         end
 
@@ -233,17 +235,19 @@ if (rst_n == 1'b0) begin
     b  <= 4'b0;
     o  <= 32'b0;
     w  <= 1'b0;
+    read <= 1'b0;
 
 end else if (ce) begin
 
-    t  <= tn;               // Счетчик фазы
-    pc <= pcn;              // Следующий PC
-    a  <= m ? cpn : pcn;    // Новый PC или указатель
-    w  <= wn;
-    o  <= on;
-    b  <= bn;
-    q  <= x;                // Для деления
-    d  <= y;
+    t   <= tn;               // Счетчик фазы
+    pc  <= pcn;              // Следующий PC
+    a   <= m ? cpn : pcn;    // Новый PC или указатель
+    o   <= on;
+    b   <= bn;
+    q   <= x;                // Для деления
+    d   <= y;
+    w   <= wn;
+    read <= rn;
 
     if (!t) opcache <= instr;
     if (rw) r[rd] <= x;

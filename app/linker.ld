@@ -13,7 +13,7 @@ SECTIONS
     .data   : { *(.data) } : data_pt
     .bss    : { *(.bss) }  : data_pt
 
-    _stack_top = 0x2D000; /* 180K */
+    _stack_top = 0x40000; /* 256K */
 
     /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) }
 }

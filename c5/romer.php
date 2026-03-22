@@ -37,12 +37,23 @@ function color8($x, $y, $rgb)
 
 switch ($argv[1] ?? "") {
 
+    // Загрузка программы
+    case 'p':
+
+        $a = 0;
+        $bin = file_get_contents($argv[2] ?? "tb.bin");
+        for ($i = 0; $i < strlen($bin); $i += 4) {
+            $data[$a++] = unpack("V*", substr($bin, $i, 4))[1];
+        }
+
+        break;
+
     // 640x400x16C
     case 'hi':
 
         $im = imagecreatefromstring(file_get_contents($argv[2] ?? "city.png"));
 
-        $a = 0;
+        $a = 0x8000;
         for ($y = 0; $y < 400; $y++) {
 
             for ($x = 0; $x < 640; $x += 8) {
@@ -50,9 +61,9 @@ switch ($argv[1] ?? "") {
                 $num = 0;
                 for ($i = 0; $i < 8; $i++) {
 
-                    $cl = imagecolorat($im, $x + $i, $y);
-                    $cl = color8($i, $y, $cl);
-                    $num = ($num*16 + ($cl & 15));
+                    $cl  = imagecolorat($im, $x + $i, $y);
+                    $cl  = color8($i, $y, $cl);
+                    $num = ($cl & 15) << 28 + ($num >> 28);
                 }
 
                 $data[$a++] = $num;
@@ -79,5 +90,5 @@ $out = [
 for ($i = 0; $i < 65536; $i++) $out[] = sprintf("  %04X: %08X;", $i, ($data[$i] ?? 0));
 
 $out[] = "END;";
-file_put_contents("m256.mif", join("\n", $out));
+file_put_contents($argv[3] ?? "m256.mif", join("\n", $out));
 

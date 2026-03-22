@@ -25,11 +25,16 @@ void    line(int x1, int y1, int x2, int y2, int color);
 void    cls(int cl);
 void    kbd_scancode(int scancode, int release);
 // --------------------
+
+// Периферийные устройства
+int     kb_hit_ascii = 0, kb_key_ascii = 0;
+int     ms_x = 0, ms_y = 0, ms_btn = 0;
+
 // Задать dos-цвета
 static const Uint32 _doscolor[256] =
 {
-    0x000000, 0x0000aa, 0x00aa00, 0x00aaaa, 0xaa0000, 0xaa00aa, 0xaa5500, 0xaaaaaa, // 0
-    0x555555, 0x5555ff, 0x55ff55, 0x55ffff, 0xff5555, 0xff55ff, 0xffff55, 0xffffff, // 8
+    0x000000, 0x0000aa, 0x00aa00, 0x00aaaa, 0xaa0000, 0xaa00aa, 0xaa5500, 0xcccccc, // 0
+    0x888888, 0x5555ff, 0x55ff55, 0x55ffff, 0xff5555, 0xff55ff, 0xffff55, 0xffffff, // 8
     0x000000, 0x141414, 0x202020, 0x2c2c2c, 0x383838, 0x454545, 0x515151, 0x616161, // 10
     0x717171, 0x828282, 0x929292, 0xa2a2a2, 0xb6b6b6, 0xcbcbcb, 0xe3e3e3, 0xffffff, // 18
     0x0000ff, 0x4100ff, 0x7d00ff, 0xbe00ff, 0xff00ff, 0xff00be, 0xff007d, 0xff0041, // 20
@@ -420,11 +425,39 @@ int loop(int delay = 20)
                     return 0;
 
                  case SDL_KEYDOWN:
+
                     kbd_scancode(_evt.key.keysym.scancode, 0);
                     break;
 
                 case SDL_KEYUP:
+
                     kbd_scancode(_evt.key.keysym.scancode, 1);
+                    break;
+
+                case SDL_MOUSEMOTION:
+
+                    ms_x = _evt.motion.x >> 1;
+                    ms_y = _evt.motion.y >> 1;
+                    break;
+
+                case SDL_MOUSEBUTTONDOWN:
+
+                    ms_x = _evt.motion.x >> 1;
+                    ms_y = _evt.motion.y >> 1;
+
+                    ms_btn = _evt.button.button;
+
+                    if      (ms_btn == SDL_BUTTON_LEFT)   ms_btn = 1;
+                    else if (ms_btn == SDL_BUTTON_RIGHT)  ms_btn = 2;
+                    else if (ms_btn == SDL_BUTTON_MIDDLE) ms_btn = 4;
+
+                    break;
+
+                case SDL_MOUSEBUTTONUP:
+
+                    ms_x = _evt.motion.x >> 1;
+                    ms_y = _evt.motion.y >> 1;
+                    ms_btn = 0;
                     break;
             }
         }

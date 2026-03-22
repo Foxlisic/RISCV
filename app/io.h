@@ -21,3 +21,8 @@
 #define csr_write(reg, val) asm volatile ("csrw " #reg ", %0" : : "rK"(val))
 #define csr_set(reg, mask)  asm volatile ("csrs " #reg ", %0" : : "rK" (mask))
 #define csr_clr(reg, mask)  asm volatile ("csrrc " #reg ", %0" : : "rK" (mask))
+
+// Положение мыши (и Больцмана)
+inline int mousex() { heapw(tmp, 0xC0000020); return tmp[0]; }
+inline int mousey() { heapw(tmp, 0xC0000030); return tmp[0]; }
+inline int mouseb() { heapw(tmp, 0xC0000040); return tmp[0]; }

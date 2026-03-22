@@ -1,6 +1,4 @@
 all: syn
-rom:
-	php romer.php hi tests/city.png
 pgm:
 	quartus_pgm -m jtag -o "p;output_files/de0.sof"
 syn:
@@ -13,6 +11,8 @@ cdb:
 	make pgm
 sta:
 	quartus_sta de0 -c de0
+png:
+	php romer.php hi tests/city.png
 clean:
 	rm -rf db incremental_db simulation timing greybox_tmp *.jdi *.pof *.sld *.rpt
 	rm -rf *.summary *.sof *.done *.pin *.bak *.smsg *.qws *.vcd

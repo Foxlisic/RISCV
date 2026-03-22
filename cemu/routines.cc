@@ -26,8 +26,6 @@ int     cursor = 0, cursor_t = 0;
 int     ebreak = 0;
 int     psize = 0;
 
-// Периферийные устройства
-int     kb_hit_ascii = 0, kb_key_ascii = 0;
 
 static const char* ralias[32] = {
     "zero", "ra", "sp",  "gp",  // 0
@@ -48,7 +46,7 @@ static const int regmap[32] = {
 };
 
 static const char* balias[8]  = {"BEQ  ", "BNE  ", "B?2  ",  "B?3  ", "BLT  ", "BGE  ", "BLTU ", "BGEU "};
-static const char* ialias[8]  = {"ADDI ", "#    ", "SLTI ",  "SLTUI", "XORI ", "ORI  ", "?6   ", "ANDI "};
+static const char* ialias[8]  = {"ADDI ", "#    ", "SLTI ",  "SLTUI", "XORI ", "#    ", "ORI  ", "ANDI "};
 static const char* lalias[8]  = {"LB   ", "LH   ", "LW   ",  "L?3  ", "LBU  ", "LHU  ", "L?6  ", "L?7  "};
 static const char* salias[8]  = {"SB   ", "SH   ", "SW   ",  "S?3  ", "S?4  ", "S?5  ", "S?6  ", "S?7  "};
 static const char* aalias[10] = {"ADD  ", "SLL  ", "SLT  ",  "SLTU ", "XOR  ", "SRL  ", "OR   ", "AND  ", "SUB  ", "SRA  "};
@@ -70,6 +68,9 @@ void init(int argc, char** argv)
 
     for (int i = 0; i < 32; i++) { regs[i]  = 0; pregs[i] = 0; }
     for (int i = 0; i < 4096; i++) csr[i] = 0;
+
+    // Видеорежим по умолчанию 640x400
+    csr[0x7C0] = 4;
 }
 
 // Чтение из памяти
@@ -82,8 +83,17 @@ Uint8 readb(Uint32 a)
         switch (a) {
 
             // Было зафиксировано нажатие на клавишу и получение кода ASCII
-            case 0xC0000000: t = kb_hit_ascii; kb_hit_ascii = 0; return t;
-            case 0xC0001000: return kb_key_ascii;
+            case 0xC0000000: return kb_key_ascii;
+            case 0xC0000010: t = kb_hit_ascii; kb_hit_ascii = 0; return t;
+
+            // Мышь
+            case 0xC0000020: return ms_x;
+            case 0xC0000021: return ms_x >> 8;
+
+            case 0xC0000030: return ms_y;
+            case 0xC0000031: return ms_y >> 8;
+
+            case 0xC0000040: return ms_btn;
 
             default: return 0;
 
@@ -115,7 +125,7 @@ Uint16  readh(Uint32 a) { return readb(a) + readb(a+1)*256; }
 Uint32  readw(Uint32 a) { return readh(a) + readh(a+2)*65536; }
 
 void    writeh(Uint32 a, Uint16 b) { writeb(a, b); writeb(a + 1, b >> 8); }
-void    writew(Uint32 a, Uint32 b) { writeh(a, b); writeb(a + 2, b >> 16); }
+void    writew(Uint32 a, Uint32 b) { writeh(a, b); writeh(a + 2, b >> 16); }
 
 // Знакорасширение для вывода на экран
 int signex(Uint32 i, int size)
@@ -602,7 +612,7 @@ void updateScreen()
             for (int y = 0; y < 400; y++)
             for (int x = 0; x < 640; x+=2) {
 
-                t = mem[0x100000 + (x >> 1) + y*320];
+                t = mem[0x20000 + (x >> 1) + y*320];
 
                 pset(x,   y, t >> 4);
                 pset(x+1, y, t & 15);
