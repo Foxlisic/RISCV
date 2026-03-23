@@ -11,6 +11,8 @@ int main()
     draw_textarea(19, 35, 300, 100);
     draw_string(24, 40, "Часто говорят о чае, но не знают, что это такое",0);
 
+    draw_panel_down();
+
     int x = 0;
     for (;;) {
 
@@ -18,7 +20,7 @@ int main()
             x += draw_tahoma(x, 0, kbread());
         }
 
-        pset(mousex(), mousey(), mouseb());
+        // pset(mousex(), mousey(), mouseb());
     }
 
     return 0;

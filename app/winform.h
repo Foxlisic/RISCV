@@ -91,6 +91,21 @@ void draw_win(int x1, int y1, int w, int h)
     block(x1+2, y1+2, x2-2, y1+16, 1);
 }
 
+void draw_button(int x, int y, int w, int h, int press = 0)
+{
+    int x2 = x + w, y2 = y + h;
+
+    block(x, y, x2, y, 15);
+    block(x, y, x, y2, 15);
+
+    block(x2, y, x2, y2, 0);
+    block(x, y2, x2, y2, 0);
+
+    block(x2-1, y+1, x2-1, y2-1, 8);
+    block(x+1, y2-1, x2-1, y2-1, 8);
+}
+
+// Область для текста
 void draw_textarea(int x, int y, int w, int h)
 {
     int x2 = x + w, y2 = y + h;
@@ -136,7 +151,8 @@ int draw_tahoma(int x, int y, u8 ch, u8 fr = 15)
     return s;
 }
 
-int draw_string(int x, int y, const char* s, u8 fr = 15)
+// Нарисовать строку
+int draw_string(int x, int y, const char* s, u8 fr = 15, int bold = 0)
 {
     int i = 0;
     int size = 0;
@@ -147,8 +163,24 @@ int draw_string(int x, int y, const char* s, u8 fr = 15)
         if (ch == 0xD0) { ch = s[i++]; ch -= 0x10; if (ch == 0x71) ch = 0xC0; }
         if (ch == 0xD1) { ch = s[i++]; ch += 0x30; }
 
+        if (bold) { draw_tahoma(x + size, y, ch, fr); size++; }
+
         size += draw_tahoma(x + size, y, ch, fr);
+
+
     }
 
     return size;
+}
+
+// Нижняя панель
+void draw_panel_down()
+{
+    int h = 372;
+
+    block(0,h,639,399,7);
+    block(0,h+1,639,h+1,15);
+
+    draw_button(2,h+4,40,20);
+    draw_string(8,h+9,"Пуск",0,1);
 }
