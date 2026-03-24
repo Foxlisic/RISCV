@@ -14,11 +14,15 @@ int main()
     draw_panel_down();
 
     int x = 0;
+
+
     for (;;) {
 
         if (kbhit()) {
             x += draw_tahoma(x, 0, kbread());
         }
+
+        mouse_move();
 
         // pset(mousex(), mousey(), mouseb());
     }

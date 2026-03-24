@@ -28,7 +28,7 @@ void    kbd_scancode(int scancode, int release);
 
 // Периферийные устройства
 int     kb_hit_ascii = 0, kb_key_ascii = 0;
-int     ms_x = 0, ms_y = 0, ms_btn = 0;
+int     ms_x = 320, ms_y = 200, ms_btn = 0;
 
 // Задать dos-цвета
 static const Uint32 _doscolor[256] =

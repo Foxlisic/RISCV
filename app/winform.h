@@ -1,5 +1,79 @@
 #include "tahoma.h"
 
+#define CURSOR_W 12
+#define CURSOR_H 21
+
+int cursorx, cursory;
+
+// 1-черный,2-белый,0-прозрачный
+static const u8 cursor[CURSOR_W*CURSOR_H] = {
+    1,0,0,0,0,0,0,0,0,0,0,0,
+    1,1,0,0,0,0,0,0,0,0,0,0,
+    1,2,1,0,0,0,0,0,0,0,0,0,
+    1,2,2,1,0,0,0,0,0,0,0,0,
+    1,2,2,2,1,0,0,0,0,0,0,0,
+    1,2,2,2,2,1,0,0,0,0,0,0,
+    1,2,2,2,2,2,1,0,0,0,0,0,
+    1,2,2,2,2,2,2,1,0,0,0,0,
+    1,2,2,2,2,2,2,2,1,0,0,0,
+    1,2,2,2,2,2,2,2,2,1,0,0,
+    1,2,2,2,2,2,2,2,2,2,1,0,
+    1,2,2,2,2,2,2,1,1,1,1,1,
+    1,2,2,2,1,2,2,1,0,0,0,0,
+    1,2,2,1,1,2,2,1,0,0,0,0,
+    1,2,1,0,0,1,2,2,1,0,0,0,
+    1,1,0,0,0,1,2,2,1,0,0,0,
+    1,0,0,0,0,0,1,2,2,1,0,0,
+    0,0,0,0,0,0,1,2,2,1,0,0,
+    0,0,0,0,0,0,0,1,2,2,1,0,
+    0,0,0,0,0,0,0,1,2,2,1,0,
+    0,0,0,0,0,0,0,0,1,1,0,0,
+};
+
+// Запись того что было за курсором во время прорисовки pset()
+u8 cursorback[21][12];
+u8 cursor_new[21][12];
+
+// Прочесть точку с экрана
+int point(int x, int y)
+{
+    heapb(vm, 0x20000);
+
+    if (x < 0 || x >= 640 || y < 0 || y >= 400) {
+        return 0;
+    }
+
+    int t = y*320 + (x >> 1);
+    return (x & 1 ? (vm[t] & 15) : (vm[t] >> 4));
+}
+
+// Установить точку на экране
+void pset(int x, int y, u8 c)
+{
+    heapb(vm, 0x20000);
+    if (x < 0 || x >= 640 || y < 0 || y >= 400) {
+        return;
+    }
+
+    int j = x - cursorx;
+    int i = y - cursory;
+
+    // Сейчас мы рисуем там, где показывается курсор
+    if (j >= 0 && j < CURSOR_W && i >= 0 && i < CURSOR_H) {
+
+        // Сохранить в буфер курсора для восстановления
+        cursorback[i][j] = c;
+
+        // Получение цвета точки для курсора
+        int ck = cursor[j + CURSOR_W*i];
+
+        if (ck == 1) c = 0; else if (ck == 2) c = 15;
+    }
+
+    int t = y*320 + (x >> 1);
+    vm[t] = x & 1 ? (vm[t] & 0xF0) | c : (vm[t] & 0x0F) | (c << 4);
+}
+
 // Очистка экрана
 void clear(u8 c)
 {
@@ -13,14 +87,14 @@ void clear(u8 c)
     c8 |= (c8 << 16);
 
     for (int i = 0; i < (640*400/8); i++) vm[i] = c8;
-}
 
-// Установить точку на экране
-void pset(int x, int y, u8 c)
-{
-    heapb(vm, 0x20000);
-    int t = y*320 + (x >> 1);
-    vm[t] = x & 1 ? (vm[t] & 0xF0) | c : (vm[t] & 0x0F) | (c << 4);
+    cursorx = mousex();
+    cursory = mousey();
+
+    // Нарисовать курсор
+    for (int i = 0; i < CURSOR_H; i++)
+    for (int j = 0; j < CURSOR_W; j++)
+        pset(j + cursorx, i + cursory, c);
 }
 
 // Нарисовать блок
@@ -47,16 +121,26 @@ void block(int x1, int y1, int x2, int y2, u8 c)
 
     for (int i = y1; i <= y2; i++) {
 
-        int t = 320*i;
+        // В области рисования курсора придется протормозить
+        if (i >= cursory && i < cursory + CURSOR_H) {
 
-        // Нарисовать точку слева
-        if (x1 & 1) { vm[t + xa - 1] = (vm[t + xa - 1] & 0xF0) | c; }
+            for (int j = x1; j <= x2; j++) {
+                pset(j, i, c);
+            }
 
-        // Прорисовать блок посередине
-        for (int j = xa; j < xb; j++) { vm[j + t] = (c | c4); }
+        } else {
 
-        // Нарисовать точку справа
-        if ((x2 & 1) == 0) { vm[t + xb] = (vm[t + xb] & 0x0F) | c4; }
+            int t = 320*i;
+
+            // Нарисовать точку слева
+            if (x1 & 1) { vm[t + xa - 1] = (vm[t + xa - 1] & 0xF0) | c; }
+
+            // Прорисовать блок посередине
+            for (int j = xa; j < xb; j++) { vm[j + t] = (c | c4); }
+
+            // Нарисовать точку справа
+            if ((x2 & 1) == 0) { vm[t + xb] = (vm[t + xb] & 0x0F) | c4; }
+        }
     }
 }
 
@@ -166,8 +250,6 @@ int draw_string(int x, int y, const char* s, u8 fr = 15, int bold = 0)
         if (bold) { draw_tahoma(x + size, y, ch, fr); size++; }
 
         size += draw_tahoma(x + size, y, ch, fr);
-
-
     }
 
     return size;
@@ -183,4 +265,36 @@ void draw_panel_down()
 
     draw_button(2,h+4,40,20);
     draw_string(8,h+9,"Пуск",0,1);
+}
+
+// Смещение положения мыши
+void mouse_move()
+{
+    int px = cursorx,  py = cursory;    // Было ранее
+    int mx = mousex(), my = mousey();   // Стало сейчас
+
+    if (mx == px && my == py) {
+        return;
+    }
+
+    cursorx = mx;
+    cursory = my;
+
+    // Скопировать старую область памяти
+    for (int i = 0; i < CURSOR_H; i++) for (int j = 0; j < CURSOR_W; j++) cursor_new[i][j] = cursorback[i][j];
+
+    // Восстановить старую область, частично может быть перерисована иконка курсора
+    for (int i = 0; i < CURSOR_H; i++) for (int j = 0; j < CURSOR_W; j++) pset(px+j, py+i, cursor_new[i][j]);
+
+    // Перерисовка нового указателя
+    for (int i = 0; i < CURSOR_H; i++) for (int j = 0; j < CURSOR_W; j++) {
+
+        int x  = mx+j, y  = my+i; // Текущая точка
+        int dx = x-px, dy = y-py; // Старая область
+
+        // Если точка попадает в старую область, то взять цвет оттуда, иначе просто с экрана
+        int cl = (dx >= 0 && dx < CURSOR_W && dy >= 0 && dy < CURSOR_H) ? cursor_new[dy][dx] : point(x, y);
+
+        pset(mx+j, my+i, cl);
+    }
 }
