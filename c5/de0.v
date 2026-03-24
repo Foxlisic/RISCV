@@ -124,6 +124,8 @@ wire [31:0] i =
     a[31:4] == 28'hC000002 ? x   :          // MouseX
     a[31:4] == 28'hC000003 ? y   :          // MouseY
     a[31:4] == 28'hC000004 ? btn :          // Button
+    a[31:4] == 28'hC000005 ? ms_pending :   // Пришли новые данные с мыши
+    a[31:4] == 28'hC000006 ? timer :        // Миллисекундный таймер
     32'b0;
 
 // FMax ~ 43 Mhz при таком подходе с негативным спадом clock-100
@@ -159,6 +161,7 @@ wire [ 2:0] btn;
 wire        recv;
 reg  [ 7:0] kb_ascii;
 reg         kb_pending;
+reg         ms_pending;
 
 // Клавиатура
 kb K1A
@@ -197,7 +200,7 @@ mouse K1B
     .clock   (c25),
     .reset_n (reset_n),
     .xmax    (640),
-    .ymax    (480),
+    .ymax    (400),
     .x       (x),
     .y       (y),
     .ps_clk  (PS2_CLK2),
@@ -210,13 +213,22 @@ mouse K1B
     .recv    (recv)
 );
 
+// -----------------------------------------------------------------------------
+
+reg [31:0] timer;
+reg [14:0] subclock;
+
 always @(posedge c25) begin
 
     // При чтении сбрасывать KB PENDING (на следующем такте)
     if (a[31:4] == 28'hC000001 && read) kb_pending <= 0;
 
     // Пришли данные
-    if (kb_done) begin kb_ascii <= ascii; kb_pending <= 1; end
+    if (kb_done) begin kb_pending <= 1; kb_ascii <= ascii; end
+    if (recv)    begin ms_pending <= 1; end
+
+    // Реализация таймера
+    if (subclock == 25000) begin subclock <= 0; timer <= timer + 1; end else subclock <= subclock + 1;
 
 end
 

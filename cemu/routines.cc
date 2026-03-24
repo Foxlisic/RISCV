@@ -89,11 +89,15 @@ Uint8 readb(Uint32 a)
             // Мышь
             case 0xC0000020: return ms_x;
             case 0xC0000021: return ms_x >> 8;
-
             case 0xC0000030: return ms_y;
             case 0xC0000031: return ms_y >> 8;
-
             case 0xC0000040: return ms_btn;
+
+            // Таймер
+            case 0xC0000060: return nticks;
+            case 0xC0000061: return nticks >> 8;
+            case 0xC0000062: return nticks >> 16;
+            case 0xC0000063: return nticks >> 24;
 
             default: return 0;
 

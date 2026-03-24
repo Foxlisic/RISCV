@@ -27,6 +27,7 @@ void    kbd_scancode(int scancode, int release);
 // --------------------
 
 // Периферийные устройства
+Uint32  nticks = 0;
 int     kb_hit_ascii = 0, kb_key_ascii = 0;
 int     ms_x = 320, ms_y = 200, ms_btn = 0;
 
@@ -463,8 +464,8 @@ int loop(int delay = 20)
         }
 
         // Обновление N раз в секунду
-        Uint32 nticks = SDL_GetTicks();
-        Uint32 diff   = nticks - _pticks;
+        nticks = SDL_GetTicks();
+        Uint32 diff = nticks - _pticks;
 
         // Кадр был обработан успешно
         if (diff >= delay) {
