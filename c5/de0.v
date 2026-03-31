@@ -293,8 +293,8 @@ always @(posedge c25) begin
     28'hC000001: if (read) kb_pending <= 0;
 
     // Запись адреса SD LBA
-    28'hC000007: if (w) sd_lba <= d;
-    28'hC000008: if (w) {sd_rw, sd_command} <= d[1:0];
+    28'hC000007: if (w) {sd_rw, sd_command} <= d[1:0];
+    28'hC000008: if (w) sd_lba <= d;
 
     endcase
 

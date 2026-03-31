@@ -86,8 +86,10 @@ void clear(u8 c)
     c8 |= (c8 << 8);
     c8 |= (c8 << 16);
 
+    // Очистка экрана в определенный цвет
     for (int i = 0; i < (640*400/8); i++) vm[i] = c8;
 
+    // Инициализация курсора
     cursorx = mousex();
     cursory = mousey();
     cursorc = 0;
