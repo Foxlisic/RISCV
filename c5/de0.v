@@ -63,10 +63,11 @@ module de0
 );
 
 // High-Impendance-State
-assign DRAM_DQ = 16'hzzzz;
-assign GPIO_0  = 36'hzzzzzzzz;
-assign GPIO_1  = 36'hzzzzzzzz;
-assign SD_DATA[0] = 1'bZ;
+assign DRAM_DQ      = 16'hzzzz;
+assign GPIO_0       = 36'hzzzzzzzz;
+assign GPIO_1       = 36'hzzzzzzzz;
+assign SD_DATA[0]   = 1'bZ;
+
 assign {HEX0,HEX1,HEX2,HEX3,HEX4,HEX5} = ~48'h0;
 
 // Провода
@@ -91,8 +92,8 @@ pll u0
 wire [31:0] a; // Адресок дайте?
 wire [ 3:0] b; // Маска
 wire [31:0] d; // Данные на запись
-wire [31:0] q; // На чтение
-wire        w, read; // Сигнал записи или чтения
+wire [31:0] q, q2, q3;  // На чтение
+wire        w, read;    // Сигнал записи или чтения
 
 core C1
 (
@@ -114,11 +115,13 @@ core C1
 // -----------------------------------------------------------------------------
 
 // Допустимость записи в память
-wire w256 = a < 32'h40000;
+wire w256 = a  < 32'h40000;
+wire w4sd = a >= 32'hFF000 && a < 32'h100000;
 
 // Роутер памяти
 wire [31:0] i =
     w256 ? q :
+    w4sd ? q2 :
     a[31:4] == 28'hC000000 ? kb_ascii   :   // Keyb
     a[31:4] == 28'hC000001 ? kb_pending :   // Hit
     a[31:4] == 28'hC000002 ? x   :          // MouseX
@@ -126,10 +129,33 @@ wire [31:0] i =
     a[31:4] == 28'hC000004 ? btn :          // Button
     a[31:4] == 28'hC000005 ? ms_pending :   // Пришли новые данные с мыши
     a[31:4] == 28'hC000006 ? timer :        // Миллисекундный таймер
+    a[31:4] == 28'hC000007 ? {sd_error[3:0], sd_card[1:0], sd_done, sd_busy} :
     32'b0;
 
 // FMax ~ 43 Mhz при таком подходе с негативным спадом clock-100
-m256 M1(.c(~c100), .a(a[17:2]), .b(b), .d(d), .q(q), .w(w & w256), .ax(va), .qx(vq));
+m256 M1(.c(~c100), .a(a[17:2]), .b(b), .d(d), .q(q),  .w(w & w256), .ax(va), .qx(vq));
+
+// Подключение SD-карты
+// -----------------------------------------------------------------------------
+
+wire [3:0] sd_b = ~(1'b1 << sd_a[1:0]);
+
+m4sd M2
+(
+    .c (~c100),
+    // --
+    .a (a[11:2]),
+    .b (b),
+    .d (d),
+    .q (q2),
+    .w (w & w4sd),
+    // --
+    .ax (sd_a[9:2]),
+    .bx (sd_b),
+    .dx ({sd_o, sd_o, sd_o, sd_o}),
+    .qx (q3),
+    .wx (sd_w),
+);
 
 // Видеоадаптер
 // -----------------------------------------------------------------------------
@@ -215,13 +241,62 @@ mouse K1B
 
 // -----------------------------------------------------------------------------
 
+wire [ 9:0] sd_a;
+wire [ 7:0] sd_i = q3 >> {sd_a[1:0], 3'b000};
+wire [ 7:0] sd_o;
+wire        sd_w;
+
+reg         sd_command;
+reg         sd_rw;
+reg         sd_lba;
+wire        sd_done, sd_busy;
+wire [3:0]  sd_error;
+wire [1:0]  sd_card;
+
+sd SD
+(
+    .clock      (c25),
+    .reset_n    (reset_n),
+    // Физический доступ
+    .cs         (SD_DATA[3]),   // Выбор чипа
+    .sclk       (SD_CLK),       // Тактовая частота
+    .miso       (SD_DATA[0]),   // Входящие данные
+    .mosi       (SD_CMD),       // Исходящие
+    // Управление
+    .command    (sd_command),
+    .rw         (sd_rw),
+    .lba        (sd_lba),
+    // --
+    .done       (sd_done),
+    .busy       (sd_busy),
+    .error      (sd_error),
+    .card       (sd_card),
+    // Подключенная память
+    .a          (sd_a),
+    .i          (sd_i),
+    .o          (sd_o),
+    .w          (sd_w)
+);
+// -----------------------------------------------------------------------------
+
 reg [31:0] timer;
 reg [14:0] subclock;
 
 always @(posedge c25) begin
 
+    // Строб для запуска команды
+    sd_command <= 1'b0;
+
+    case (a[31:4])
+
     // При чтении сбрасывать KB PENDING (на следующем такте)
-    if (a[31:4] == 28'hC000001 && read) kb_pending <= 0;
+    28'hC000001: if (read) kb_pending <= 0;
+
+    // Запись адреса SD LBA
+    28'hC000007: if (w) sd_lba <= d;
+    28'hC000008: if (w) {sd_rw, sd_command} <= d[1:0];
+
+    endcase
 
     // Пришли данные
     if (kb_done) begin kb_pending <= 1; kb_ascii <= ascii; end
@@ -236,6 +311,7 @@ endmodule
 
 `include "../core.v"
 `include "../vga32.v"
+`include "../sd.v"
 `include "../kb.v"
 `include "../mouse.v"
 

@@ -15,16 +15,24 @@ int main()
 
     int x = 0;
 
-
     for (;;) {
 
         if (kbhit()) {
             x += draw_tahoma(x, 0, kbread());
         }
 
-        mouse_move();
+        if (mouse_moveclick()) {
 
-        // pset(mousex(), mousey(), mouseb());
+            int mx = mousex();
+            int my = mousey();
+
+            if (mx >= 2 && my >= 376 && mx < 2+40 && my < 376+20) {
+                draw_button(2,376,40,20,1);
+                draw_string(9,382,"Пуск",0,1);
+            }
+
+            pset(mousex(), mousey(), mouseb());
+        }
     }
 
     return 0;

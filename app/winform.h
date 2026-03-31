@@ -3,7 +3,7 @@
 #define CURSOR_W 12
 #define CURSOR_H 21
 
-int cursorx, cursory;
+int cursorx, cursory, cursorc;
 
 // 1-черный,2-белый,0-прозрачный
 static const u8 cursor[CURSOR_W*CURSOR_H] = {
@@ -90,11 +90,10 @@ void clear(u8 c)
 
     cursorx = mousex();
     cursory = mousey();
+    cursorc = 0;
 
     // Нарисовать курсор
-    for (int i = 0; i < CURSOR_H; i++)
-    for (int j = 0; j < CURSOR_W; j++)
-        pset(j + cursorx, i + cursory, c);
+    for (int i = 0; i < CURSOR_H; i++) for (int j = 0; j < CURSOR_W; j++) pset(j + cursorx, i + cursory, c);
 }
 
 // Нарисовать блок
@@ -178,15 +177,20 @@ void draw_win(int x1, int y1, int w, int h)
 void draw_button(int x, int y, int w, int h, int press = 0)
 {
     int x2 = x + w, y2 = y + h;
+    int c1 = 15, c2 = 0, c3 = 8;
 
-    block(x, y, x2, y, 15);
-    block(x, y, x, y2, 15);
+    if (press) { c1 = 0; c2 = 15; c3 = 8; }
 
-    block(x2, y, x2, y2, 0);
-    block(x, y2, x2, y2, 0);
+    block(x, y, x2, y2, 7);
 
-    block(x2-1, y+1, x2-1, y2-1, 8);
-    block(x+1, y2-1, x2-1, y2-1, 8);
+    block(x, y, x2, y, c1);
+    block(x, y, x, y2, c1);
+
+    block(x2, y, x2, y2, c2);
+    block(x, y2, x2, y2, c2);
+
+    block(x2-1, y+1, x2-1, y2-1, c3);
+    block(x+1, y2-1, x2-1, y2-1, c3);
 }
 
 // Область для текста
@@ -268,13 +272,21 @@ void draw_panel_down()
 }
 
 // Смещение положения мыши
-void mouse_move()
+int mouse_moveclick()
 {
-    int px = cursorx,  py = cursory;    // Было ранее
-    int mx = mousex(), my = mousey();   // Стало сейчас
+    int rt = 0;
+    int px = cursorx,  py = cursory,  pb = cursorc;    // Было ранее
+    int mx = mousex(), my = mousey(), mb = mouseb();   // Стало сейчас
 
+    // Обнаружен клик мышкой (>0) или откликивание (<0)
+    if (pb != mb && pb == 0) { rt =  mb; }
+    if (pb != mb && mb == 0) { rt = -pb; }
+
+    cursorc = mb;
+
+    // Если мышь не меняла позицию, то ничего не делать далее
     if (mx == px && my == py) {
-        return;
+        return rt;
     }
 
     cursorx = mx;
@@ -297,4 +309,6 @@ void mouse_move()
 
         pset(mx+j, my+i, cl);
     }
+
+    return rt;
 }
